@@ -19,14 +19,23 @@
 
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{
-      margin:0; min-height:100%;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial;
-      background:linear-gradient(160deg,var(--bg) 0%, var(--panel) 60%, var(--bg) 100%) fixed;
-      color:var(--text);
+    body {
+      margin: 0; padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    @media (max-width: 1100px) {
+      body { height: auto; min-height: 100vh; overflow: visible; }
     }
 
-    header{ padding:24px 16px; text-align:center; position:relative; }
+    header{ padding:12px; text-align:center; position:relative; flex-shrink: 0; }
+    main{ flex: 1; min-height: 0; }
     header h1{margin:.1rem 0 .4rem; font-size:1.6rem}
     header p{color:var(--muted); margin:0; font-size:.95rem}
 
@@ -39,18 +48,91 @@
     .iconbtn:focus{ outline:2px solid var(--accent2); outline-offset:2px }
     .iconbtn svg{ width:18px; height:18px; }
 
-    .container{ max-width:1200px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns: 1.2fr .8fr }
-    @media (max-width: 1100px){ .container{ grid-template-columns: 1fr; } }
+    .container{ 
+      width: 100%; height: calc(100vh - 80px); padding: 16px; box-sizing: border-box;
+      display: flex; gap: 16px; align-items: stretch;
+      overflow: hidden;
+      min-height: 600px; /* Ensure minimum height */
+    }
+    @media (max-width: 1100px){ 
+      .container{ 
+        flex-direction: column; 
+        height: auto; min-height: 100vh;
+        overflow: visible;
+      } 
+    }
+
+    /* Widget System Styles */
+    .widget-container {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      padding: 12px;
+      border: 2px dashed transparent;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      flex: 1; /* Take remaining space */
+      overflow-y: auto; /* Allow scrolling if needed */
+      align-content: start; /* Align widgets to top */
+    }
+    
+    /* Widget styles */
+    .input-widget {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: color-mix(in srgb, var(--panel) 95%, transparent);
+      backdrop-filter: blur(6px);
+      transition: all 0.2s ease;
+      position: relative;
+      min-height: 80px;
+    }
+    .input-widget:hover {
+      border-color: var(--accent2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+    
+    .input-widget .widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
 
     .card{
       background:color-mix(in srgb, var(--panel) 92%, transparent);
       border:1px solid var(--border);
       border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.15);
       backdrop-filter: blur(6px);
+      display: flex; flex-direction: column;
+      min-height: 0; /* Allow shrinking */
+      overflow: hidden; /* Prevent content overflow */
+    }
+    .card:first-child {
+      flex: 1 1 auto; /* Input card - flexible */
+      min-width: 400px;
+      max-width: 60%; /* Don't dominate the screen */
+    }
+    .card:last-child {
+      flex: 1 1 auto; /* Output card - flexible */
+      min-width: 350px;
+      overflow: hidden; /* Prevent content overflow */
+    }
+    @media (max-width: 1100px) {
+      .card:first-child, .card:last-child {
+        max-width: none;
+        min-width: 0;
+        flex: none;
+      }
     }
     .card h2{margin:.2rem 0 1rem; font-size:1.15rem; color:var(--text)}
     .row{display:grid; gap:12px; grid-template-columns: 1fr 1fr}
-    .row-3{display:grid; gap:12px; grid-template-columns: 1fr 1fr 1fr}
+    .row-3{display:grid; gap:8px; grid-template-columns: 1fr 1fr 1fr; margin:4px 0;}
+    .row-3 .tiny .k{ font-size:.75rem; }
+    .row-3 .tiny .v{ font-size:.9rem; font-weight:600; }
     @media (max-width: 680px){ .row, .row-3{ grid-template-columns: 1fr; } }
     label{display:block; font-size:.9rem; color:var(--text); margin-bottom:.35rem}
     input[type="number"], select{
@@ -64,15 +146,17 @@
       border:1px solid var(--border); background:var(--btn); color:var(--btn-text)}
     .sublabel{ display:flex; justify-content:space-between; gap:8px; align-items:baseline }
     .slider-value{ font-variant-numeric: tabular-nums; color:var(--text); font-size:.9rem }
-    .sep{ height:1px; background:var(--border); margin:12px 0 }
+    .sep{ height:1px; background:var(--border); margin:8px 0 }
+    .sep.compact{ margin:4px 0 }
     .right{ text-align:right }
 
-    .out{ display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
+    .out{ display:grid; gap:8px; grid-template-columns: 1fr 1fr; margin:4px 0; }
     @media (max-width:680px){ .out{ grid-template-columns:1fr; } }
-    .metric{ padding:14px; border:1px dashed var(--border); border-radius:14px;
+    .metric{ padding:10px; border:1px dashed var(--border); border-radius:10px;
       background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent2) 8%, transparent)); }
-    .metric .k{ font-size:.9rem; color:var(--text) }
-    .metric .v{ font-weight:700; font-size:1.35rem; margin-top:.25rem; color:var(--text) }
+    .metric .k{ font-size:.85rem; color:var(--text) }
+    .metric .v{ font-weight:700; font-size:1.2rem; margin-top:.2rem; color:var(--text) }
+    .metric .tiny{ font-size:.75rem; margin-top:.15rem; }
 
     /* SETTINGS */
     details.settings{ margin-top:10px }
@@ -86,32 +170,121 @@
     .grid-2{ display:grid; gap:12px; grid-template-columns:1fr 1fr }
     @media (max-width:680px){ .grid-2{ grid-template-columns:1fr; } }
 
-    /* TABLE (Monthly Breakdown) */
-    .tablewrap{ border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--panel); }
-    .toolbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid var(--border); background:var(--btn) }
-    .toolbar .buttons{ display:flex; gap:8px; flex-wrap:wrap }
-    .table{ width:100%; border-collapse:collapse; font-size:.9rem }
-    .table thead th{ position:sticky; top:0; background:var(--btn); color:var(--text); border-bottom:1px solid var(--border); padding:8px; text-align:right }
-    .table thead th:first-child, .table tbody td:first-child{ text-align:left }
-    .table tbody td{ padding:6px 8px; border-bottom:1px solid var(--border); }
-    .table tbody tr:nth-child(odd){ background:var(--table-stripe); }
-    .scroll{ max-height:380px; overflow:auto }
+    /* TABLE (Monthly Breakdown) - Removed duplicate styles */
+    /* Table and scroll container styles */
+    .tablewrap {
+      flex: 1 1 auto; /* Take remaining space in output container and allow growth */
+      display: flex;
+      flex-direction: column;
+      min-height: 0; /* Allow shrinking */
+      overflow: hidden; /* Prevent overflow outside the container */
+      height: 100%; /* Ensure it takes full height */
+      margin-top: 8px; /* Add space between header and table */
+    }
+    .toolbar {
+      flex-shrink: 0; /* Don't shrink toolbar */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .scroll {
+      flex: 1 1 auto; /* Take all remaining space and allow growth */
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      min-height: 300px; /* Increased minimum height for scrolling area */
+      display: flex; /* Use flexbox to ensure table fills the space */
+      flex-direction: column; /* Stack contents vertically */
+      height: 100%; /* Ensure it takes full height */
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      flex: 1 1 auto; /* Make table grow to fill available space */
+    }
+    .table th, .table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .table th {
+      background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .table tbody tr:nth-child(even) {
+      background: var(--table-stripe);
+    }
+    .table tbody tr:hover {
+      background: color-mix(in srgb, var(--accent2) 8%, transparent);
+    }
     .badge{ padding:.16rem .45rem; border-radius:999px; background:var(--btn); border:1px solid var(--border); font-size:.72rem; color:var(--btn-text) }
     .warnbar{ font-size:.82rem; color:color-mix(in srgb, var(--warn) 90%, white); background:color-mix(in srgb, var(--warn) 18%, transparent);
       border:1px solid color-mix(in srgb, var(--warn) 40%, transparent); padding:10px 12px; border-radius:12px }
+    
+    /* Saved Settings Controls */
+    .saved-settings-controls {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .settings-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #presetSelector {
+      min-width: 150px;
+    }
+    
+    /* Default Values Grid */
+    .default-values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .default-value-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .default-value-item label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
   </style>
 
 <style>
 /* Resizable output container styling */
 #output-container {
     resize: both;
-    overflow: auto;
-    border: 2px solid var(--border-color, #888);
-    padding: 10px;
-    min-width: 300px;
-    min-height: 200px;
-    width: 100%; /* default full width */
+    overflow: hidden; /* Changed from auto to hidden to prevent double scrollbars */
+    border: 2px solid var(--border);
+    padding: 12px;
+    min-width: 350px;
+    min-height: 500px;
+    max-width: none; /* Remove width constraint */
+    max-height: none; /* Remove height constraint */
+    width: 100%; height: 100%; /* Fill available space */
     box-sizing: border-box;
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: blur(6px);
+    display: flex; 
+    flex-direction: column;
 }
 
 /* Make the resize handle more visible */
@@ -153,66 +326,80 @@
     <!-- LEFT: Inputs -->
     <section class="card" aria-labelledby="inputsHdr">
       <h2 id="inputsHdr">Inputs</h2>
-
-      <div class="row">
-        <div>
-          <label for="mode">Compute</label>
-          <select id="mode" aria-describedby="modeHelp">
-            <option value="corpus">Total corpus</option>
-            <option value="sip">Monthly SIP</option>
+      
+      <div class="widget-container" id="widget-container">
+        <!-- Compute Widget -->
+        <div class="input-widget" data-widget="compute">
+          <div class="widget-header">
+            <span>Compute</span>
+          </div>
+          <select id="mode">
+            <option value="corpus">Target corpus</option>
+            <option value="sip" selected>Monthly SIP</option>
             <option value="years">Years</option>
-            <option value="rate">Rate of return</option>
+            <option value="rate">Expected return</option>
           </select>
-          <div id="modeHelp" class="help">Pick the unknown. I’ll solve for it numerically.</div>
+          <div class="help">Pick the unknown. I'll solve for it numerically.</div>
         </div>
 
-        <div>
-          <label for="years">Years</label>
-          <input id="years" type="number" min="0" max="80" step="0.25" value="20" inputmode="decimal" />
-          <div class="help">You can enter decimals (e.g., 15.5 years).</div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
+        <!-- Monthly SIP Widget -->
+        <div class="input-widget" data-widget="sip">
+          <div class="widget-header">
+            <span>Monthly SIP (₹)</span>
+          </div>
           <div class="sublabel">
-            <label for="sip">Monthly SIP (₹)</label>
+            <label for="sip" style="margin-bottom: 0;">Amount</label>
             <div class="slider-value" id="sipLive">₹ 25,000</div>
           </div>
           <input id="sip" type="number" min="0" step="100" value="25000" />
           <input id="sipRange" type="range" min="0" max="300000" step="500" value="25000" aria-label="Monthly SIP slider"/>
         </div>
 
-        <div>
+        <!-- Years Widget -->
+        <div class="input-widget" data-widget="years">
+          <div class="widget-header">
+            <span>Years</span>
+          </div>
+          <input id="years" type="number" min="0" max="80" step="0.25" value="20" inputmode="decimal" />
+          <div class="help">You can enter decimals (e.g., 15.5 years).</div>
+        </div>
+
+        <!-- Expected Return Widget -->
+        <div class="input-widget" data-widget="rate">
+          <div class="widget-header">
+            <span>Expected Annual Return (%)</span>
+          </div>
           <div class="sublabel">
-            <label for="rate">Expected annual return (%)</label>
+            <label for="rate" style="margin-bottom: 0;">Rate</label>
             <div class="slider-value" id="rateLive">12.00%</div>
           </div>
           <input id="rate" type="number" min="0" max="50" step="0.1" value="12" />
           <input id="rateRange" type="range" min="0" max="50" step="0.1" value="12" aria-label="Rate slider"/>
         </div>
-      </div>
 
-      <div class="row">
-        <div>
+        <!-- Inflation Widget -->
+        <div class="input-widget" data-widget="inflation">
+          <div class="widget-header">
+            <span>Inflation Settings</span>
+          </div>
           <label for="inflAdj">Inflation-adjusted return?</label>
           <select id="inflAdj">
             <option value="no">No (use nominal return)</option>
-            <option value="yes">Yes (use “real” return)</option>
+            <option value="yes" selected>Yes (use "real" return)</option>
           </select>
-          <div class="help">When “Yes”, real return ≈ ((1+R)/(1+Inflation) − 1).</div>
+          <div class="help">When "Yes", real return ≈ ((1+R)/(1+Inflation) − 1).</div>
+          <div id="inflWrap" style="margin-top: 8px;">
+            <label for="infl">Inflation (%)</label>
+            <input id="infl" type="number" min="3" max="15" step="0.1" value="6" />
+            <div class="help">Quickly adjust via <b>Settings → Inflation slider</b> (3%–15%).</div>
+          </div>
         </div>
 
-        <!-- Number box for precise typing; mirrored by slider in Settings -->
-        <div id="inflWrap">
-          <label for="infl">Inflation (%)</label>
-          <input id="infl" type="number" min="3" max="15" step="0.1" value="5" />
-          <div class="help">Quickly adjust via <b>Settings → Inflation slider</b> (3%–15%).</div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
+        <!-- Step-up Widget -->
+        <div class="input-widget" data-widget="stepup">
+          <div class="widget-header">
+            <span>Step-up Settings</span>
+          </div>
           <label for="stepType">Step-up each year</label>
           <select id="stepType" aria-describedby="stepHelp">
             <option value="none">None</option>
@@ -220,23 +407,47 @@
             <option value="fixed">Fixed ₹</option>
           </select>
           <div id="stepHelp" class="help">Applies at each 12-month boundary.</div>
+          <div id="stepValueWrap" style="margin-top: 8px;">
+            <label for="stepValue">Step-up value</label>
+            <input id="stepValue" type="number" min="0" step="0.1" value="10" />
+            <div class="help" id="stepValueHint">If %: 10 → +10% yearly. If ₹: adds to monthly SIP each year.</div>
+          </div>
         </div>
 
-        <div id="stepValueWrap">
-          <label for="stepValue">Step-up value</label>
-          <input id="stepValue" type="number" min="0" step="0.1" value="10" />
-          <div class="help" id="stepValueHint">If %: 10 → +10% yearly. If ₹: adds to monthly SIP each year.</div>
+        <!-- Target Corpus Widget -->
+        <div class="input-widget" data-widget="target">
+          <div class="widget-header">
+            <span>Target Corpus</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input id="targetCorpus" type="number" min="0" step="1000" value="0" style="flex: 1;" />
+            <select id="corpusUnit" style="width: 80px;">
+              <option value="1">₹</option>
+              <option value="100000" selected>Lacs</option>
+              <option value="10000000">Cr</option>
+            </select>
+          </div>
+          <div class="help">Used when computing Monthly SIP / Years / Rate.</div>
+          <div class="tiny" style="margin-top: 8px; text-align: center;">
+            <span class="pill">Live</span> Results update as you type or drag sliders.
+          </div>
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label for="targetCorpus">Target corpus (₹)</label>
-          <input id="targetCorpus" type="number" min="0" step="1000" value="0" />
-          <div class="help">Used when computing Monthly SIP / Years / Rate.</div>
-        </div>
-        <div class="tiny right">
-          <span class="pill">Live</span> Results update as you type or drag sliders.
+      <!-- Saved Settings Controls -->
+      <div class="saved-settings-controls">
+        <div class="settings-row">
+          <div class="settings-group">
+            <label for="presetSelector">Saved Settings:</label>
+            <select id="presetSelector">
+              <option value="default">Default</option>
+              <!-- Presets will be loaded here -->
+            </select>
+          </div>
+          <div class="settings-group">
+            <button id="savePresetBtn" class="iconbtn" title="Save current settings">Save As</button>
+            <button id="deletePresetBtn" class="iconbtn" title="Delete selected preset">Delete</button>
+          </div>
         </div>
       </div>
 
@@ -250,9 +461,9 @@
             <div>
               <div class="sublabel">
                 <label for="inflRange">Inflation slider (3%–15%)</label>
-                <div class="slider-value" id="inflLive">5.0%</div>
+                <div class="slider-value" id="inflLive">6.0%</div>
               </div>
-              <input id="inflRange" type="range" min="3" max="15" step="0.1" value="5" aria-label="Inflation slider"/>
+              <input id="inflRange" type="range" min="3" max="15" step="0.1" value="6" aria-label="Inflation slider"/>
               <div class="help">Adjusts the same Inflation field above (kept in sync).</div>
             </div>
             <div>
@@ -262,6 +473,63 @@
               <div class="tiny">Theme: <span class="pill" id="themeStateBadge">Dark</span></div>
               <div class="tiny">Settings open: <span class="pill" id="settingsStateBadge">No</span></div>
             </div>
+          </div>
+          
+          <div class="sep"></div>
+          <h3 style="margin: 12px 0 8px 0; font-size: 1rem;">Default Values</h3>
+          <div class="help">Set your preferred default values. These will be used when no saved settings exist.</div>
+          
+          <div class="default-values-grid">
+            <div class="default-value-item">
+              <label for="defaultSip">Monthly SIP (₹)</label>
+              <input id="defaultSip" type="number" min="0" step="100" value="25000" />
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultYears">Years</label>
+              <input id="defaultYears" type="number" min="0" max="80" step="0.25" value="10" />
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultRate">Expected Annual Return (%)</label>
+              <input id="defaultRate" type="number" min="0" max="50" step="0.1" value="12" />
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultInflation">Inflation (%)</label>
+              <input id="defaultInflation" type="number" min="3" max="15" step="0.1" value="6" />
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultStepType">Step-up Type</label>
+              <select id="defaultStepType">
+                <option value="none" selected>None</option>
+                <option value="percent">Percent (%)</option>
+                <option value="fixed">Fixed ₹</option>
+              </select>
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultStepValue">Step-up Value</label>
+              <input id="defaultStepValue" type="number" min="0" step="0.1" value="10" />
+            </div>
+            
+            <div class="default-value-item">
+              <label for="defaultTargetCorpus">Target Corpus</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input id="defaultTargetCorpus" type="number" min="0" step="1000" value="1" style="flex: 1;" />
+                <select id="defaultCorpusUnit" style="width: 80px;">
+                  <option value="1">₹</option>
+                  <option value="100000">Lacs</option>
+                  <option value="10000000" selected>Cr</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 12px;">
+            <button id="saveDefaultsBtn" class="iconbtn">Save Default Values</button>
+            <button id="resetDefaultsBtn" class="iconbtn">Reset to System Defaults</button>
           </div>
         </div>
       </details>
@@ -275,34 +543,36 @@
 
     <!-- RIGHT: Outputs -->
     <section class="card" id="output-container" aria-labelledby="outputsHdr">
-      <h2 id="outputsHdr">Outputs</h2>
-      <div id="alerts" class="tiny"></div>
+      <div style="flex-shrink: 0; margin-bottom: 6px;">
+        <h2 id="outputsHdr" style="margin: 0 0 2px 0; font-size: 1.1rem;">Outputs</h2>
+        <div id="alerts" class="tiny"></div>
 
-      <div class="out" style="margin-top:6px">
-        <div class="metric">
-          <div class="k">Final corpus</div>
-          <div class="v" id="outCorpus">₹ 0</div>
-          <div class="tiny muted" id="outCorpusShort">—</div>
+        <div class="out" style="margin: 4px 0;">
+          <div class="metric" style="padding: 8px;">
+            <div class="k">Final corpus</div>
+            <div class="v" id="outCorpus">₹ 0</div>
+            <div class="tiny muted" id="outCorpusShort">—</div>
+          </div>
+          <div class="metric" style="padding: 8px;">
+            <div class="k">Total invested</div>
+            <div class="v" id="outInvested">₹ 0</div>
+            <div class="tiny muted">Gains: <span id="outGains">₹ 0</span></div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="k">Total invested</div>
-          <div class="v" id="outInvested">₹ 0</div>
-          <div class="tiny muted">Gains: <span id="outGains">₹ 0</span></div>
+
+        <div class="sep compact" style="margin: 2px 0;"></div>
+        <div class="row-3" style="margin: 2px 0;">
+          <div class="tiny"><div class="k muted">Monthly SIP used</div><div class="v" id="usedSip">₹ 0</div></div>
+          <div class="tiny"><div class="k muted">Years used</div><div class="v" id="usedYears">0</div></div>
+          <div class="tiny"><div class="k muted">Return (nominal or real)</div><div class="v" id="usedRate">0%</div></div>
         </div>
-      </div>
 
-      <div class="sep"></div>
-      <div class="row-3">
-        <div class="tiny"><div class="k muted">Monthly SIP used</div><div class="v" id="usedSip">₹ 0</div></div>
-        <div class="tiny"><div class="k muted">Years used</div><div class="v" id="usedYears">0</div></div>
-        <div class="tiny"><div class="k muted">Return (nominal or real)</div><div class="v" id="usedRate">0%</div></div>
+        <div class="sep compact" style="margin: 2px 0;"></div>
       </div>
-
-      <div class="sep"></div>
 
       <!-- Monthly breakdown table + downloads -->
       <div class="tablewrap">
-        <div class="toolbar">
+        <div class="toolbar" style="margin-bottom: 4px;">
           <div class="tiny">Monthly breakdown (auto-updates)</div>
           <div class="buttons">
             <button id="btnCsv" class="iconbtn" title="Download CSV">CSV</button>
@@ -326,11 +596,10 @@
             <tbody id="scheduleBody"></tbody>
           </table>
         </div>
-      </div>
-
-      <div class="sep"></div>
-      <div class="footnote">
-        Currency formatting: <code>en-IN</code> (lakhs/crores). Estimates only; not financial advice.
+        
+        <div class="footnote" style="margin-top: 2px; flex-shrink: 0; font-size: 0.7rem; color: var(--muted);">
+          Currency formatting: <code>en-IN</code> (lakhs/crores). Estimates only; not financial advice.
+        </div>
       </div>
     </section>
   </main>
@@ -536,7 +805,11 @@
       const inflAdj = ui.inflAdj.value === 'yes';
       const stepType = ui.stepType.value;
       const stepValue = Math.max(0, Number(ui.stepValue.value) || 0);
-      const targetCorpus = Math.max(0, Number(ui.targetCorpus.value) || 0);
+      
+      // Get corpus value with unit conversion
+      const corpusUnitValue = Number(document.getElementById('corpusUnit').value) || 1;
+      const targetCorpus = Math.max(0, (Number(ui.targetCorpus.value) || 0) * corpusUnitValue);
+      
       return { mode, sip0, years, ratePct, annRateNominal: ratePct/100, inflPct, inflAdj,
                stepType, stepVal: stepValue, targetCorpus };
     }
@@ -674,6 +947,10 @@
     [
       ui.mode, ui.years, ui.sip, ui.rate, ui.inflAdj, ui.infl, ui.stepType, ui.stepValue, ui.targetCorpus
     ].forEach(e => e.addEventListener('input', computeAndRender));
+    
+    // Handle corpus unit conversion
+    const corpusUnit = document.getElementById('corpusUnit');
+    corpusUnit.addEventListener('change', computeAndRender);
     ui.sipRange.addEventListener('input', ()=>{ ui.sip.value = ui.sipRange.value; computeAndRender(); });
     ui.rateRange.addEventListener('input', ()=>{ ui.rate.value = ui.rateRange.value; computeAndRender(); });
     ui.inflRange.addEventListener('input', ()=>{ ui.infl.value = Number(ui.inflRange.value).toFixed(1); computeAndRender(); });
@@ -692,29 +969,355 @@
       download('sip_monthly_breakdown.xls', new Blob([xls], {type:'application/vnd.ms-excel'}));
     });
 
-    // Init
-    computeAndRender();
-  </script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const container = document.getElementById("output-container");
-    if (!container) return;
-
-    // Restore size from localStorage
-    const savedWidth = localStorage.getItem("outputContainerWidth");
-    const savedHeight = localStorage.getItem("outputContainerHeight");
-    if (savedWidth) container.style.width = savedWidth;
-    if (savedHeight) container.style.height = savedHeight;
-
-    // Observe resize and save size
-    let resizeObserver = new ResizeObserver(() => {
-        localStorage.setItem("outputContainerWidth", container.style.width);
-        localStorage.setItem("outputContainerHeight", container.style.height);
+  /* Output container resize persistence */
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load saved output container size from localStorage
+    const outputContainer = document.getElementById('output-container');
+    if (!outputContainer) return;
+    
+    const savedWidth = localStorage.getItem('sip_output_width');
+    const savedHeight = localStorage.getItem('sip_output_height');
+    
+    if (savedWidth) outputContainer.style.width = savedWidth;
+    if (savedHeight) outputContainer.style.height = savedHeight;
+    
+    // Save output container size when resized
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        localStorage.setItem('sip_output_width', entry.target.style.width);
+        localStorage.setItem('sip_output_height', entry.target.style.height);
+      }
     });
-    resizeObserver.observe(container);
-});
-</script>
+    
+    resizeObserver.observe(outputContainer);
+    
+    // Settings persistence
+    setupSettingsPersistence();
+    
+    // Default values management
+    setupDefaultValuesManagement();
+    
+    // Initial calculation
+    calculate();
+  });
+  
+  // Settings persistence and presets functionality
+  function setupSettingsPersistence() {
+    const presetSelector = document.getElementById('presetSelector');
+    const savePresetBtn = document.getElementById('savePresetBtn');
+    const deletePresetBtn = document.getElementById('deletePresetBtn');
+    
+    // Load last used settings
+    loadLastUsedSettings();
+    
+    // Load saved presets into dropdown
+    loadSavedPresets();
+    
+    // Save current settings when inputs change
+    function saveCurrentSettings() {
+      const settings = getCurrentSettings();
+      localStorage.setItem('sip_last_settings', JSON.stringify(settings));
+    }
+    
+    // Add event listeners to all inputs to save settings when changed
+    const allInputs = document.querySelectorAll('input, select');
+    allInputs.forEach(input => {
+      if (input.id !== 'presetSelector') { // Don't trigger on preset selector itself
+        input.addEventListener('change', saveCurrentSettings);
+      }
+    });
+    
+    // Handle preset selection
+    presetSelector.addEventListener('change', function() {
+      const selectedPreset = presetSelector.value;
+      if (selectedPreset === 'default') {
+        resetToDefaultSettings();
+      } else {
+        loadPreset(selectedPreset);
+      }
+    });
+    
+    // Save preset button
+    savePresetBtn.addEventListener('click', function() {
+      const presetName = prompt('Enter a name for this preset:');
+      if (presetName && presetName.trim() !== '') {
+        savePreset(presetName.trim());
+      }
+    });
+    
+    // Delete preset button
+    deletePresetBtn.addEventListener('click', function() {
+      const selectedPreset = presetSelector.value;
+      if (selectedPreset !== 'default') {
+        if (confirm(`Delete preset "${selectedPreset}"?`)) {
+          deletePreset(selectedPreset);
+        }
+      } else {
+        alert('Cannot delete the default preset.');
+      }
+    });
+  }
+  
+  // Get current settings from all inputs
+  function getCurrentSettings() {
+    return {
+      mode: document.getElementById('mode').value,
+      years: document.getElementById('years').value,
+      sip: document.getElementById('sip').value,
+      rate: document.getElementById('rate').value,
+      inflAdj: document.getElementById('inflAdj').value,
+      infl: document.getElementById('infl').value,
+      stepType: document.getElementById('stepType').value,
+      stepValue: document.getElementById('stepValue').value,
+      targetCorpus: document.getElementById('targetCorpus').value,
+      corpusUnit: document.getElementById('corpusUnit').value
+    };
+  }
+  
+  // Apply settings to all inputs
+  function applySettings(settings) {
+    if (!settings) return;
+    
+    // Apply each setting if it exists
+    if (settings.mode) document.getElementById('mode').value = settings.mode;
+    if (settings.years) document.getElementById('years').value = settings.years;
+    if (settings.sip) {
+      document.getElementById('sip').value = settings.sip;
+      document.getElementById('sipRange').value = Math.min(settings.sip, document.getElementById('sipRange').max);
+    }
+    if (settings.rate) {
+      document.getElementById('rate').value = settings.rate;
+      document.getElementById('rateRange').value = settings.rate;
+    }
+    if (settings.inflAdj) document.getElementById('inflAdj').value = settings.inflAdj;
+    if (settings.infl) {
+      document.getElementById('infl').value = settings.infl;
+      document.getElementById('inflRange').value = settings.infl;
+    }
+    if (settings.stepType) document.getElementById('stepType').value = settings.stepType;
+    if (settings.stepValue) document.getElementById('stepValue').value = settings.stepValue;
+    if (settings.targetCorpus) document.getElementById('targetCorpus').value = settings.targetCorpus;
+    if (settings.corpusUnit) document.getElementById('corpusUnit').value = settings.corpusUnit;
+    
+    // Update UI based on settings
+    updateStepUI();
+    updateInflUI();
+    syncSliderDisplays();
+    
+    // Recalculate with new settings
+    computeAndRender();
+  }
+  
+  // Load last used settings
+  function loadLastUsedSettings() {
+    try {
+      const lastSettings = JSON.parse(localStorage.getItem('sip_last_settings'));
+      if (lastSettings) {
+        applySettings(lastSettings);
+      } else {
+        // If no last used settings exist, apply default values
+        resetToDefaultSettings();
+      }
+    } catch (e) {
+      console.error('Error loading last settings:', e);
+      // If error, apply default values
+      resetToDefaultSettings();
+    }
+  }
+  
+  // Load all saved presets into dropdown
+  function loadSavedPresets() {
+    try {
+      const presetSelector = document.getElementById('presetSelector');
+      const savedPresets = JSON.parse(localStorage.getItem('sip_saved_presets')) || {};
+      
+      // Clear existing options except default
+      while (presetSelector.options.length > 1) {
+        presetSelector.remove(1);
+      }
+      
+      // Add saved presets to dropdown
+      Object.keys(savedPresets).forEach(presetName => {
+        const option = document.createElement('option');
+        option.value = presetName;
+        option.textContent = presetName;
+        presetSelector.appendChild(option);
+      });
+    } catch (e) {
+      console.error('Error loading saved presets:', e);
+    }
+  }
+  
+  // Save current settings as a named preset
+  function savePreset(presetName) {
+    try {
+      const settings = getCurrentSettings();
+      const savedPresets = JSON.parse(localStorage.getItem('sip_saved_presets')) || {};
+      
+      savedPresets[presetName] = settings;
+      localStorage.setItem('sip_saved_presets', JSON.stringify(savedPresets));
+      
+      // Reload presets and select the new one
+      loadSavedPresets();
+      document.getElementById('presetSelector').value = presetName;
+      
+      alert(`Preset "${presetName}" saved successfully!`);
+    } catch (e) {
+      console.error('Error saving preset:', e);
+      alert('Error saving preset. Please try again.');
+    }
+  }
+  
+  // Load a specific preset
+  function loadPreset(presetName) {
+    try {
+      const savedPresets = JSON.parse(localStorage.getItem('sip_saved_presets')) || {};
+      if (savedPresets[presetName]) {
+        applySettings(savedPresets[presetName]);
+      }
+    } catch (e) {
+      console.error('Error loading preset:', e);
+    }
+  }
+  
+  // Delete a preset
+  function deletePreset(presetName) {
+    try {
+      const savedPresets = JSON.parse(localStorage.getItem('sip_saved_presets')) || {};
+      if (savedPresets[presetName]) {
+        delete savedPresets[presetName];
+        localStorage.setItem('sip_saved_presets', JSON.stringify(savedPresets));
+        
+        // Reload presets and select default
+        loadSavedPresets();
+        document.getElementById('presetSelector').value = 'default';
+        
+        alert(`Preset "${presetName}" deleted successfully!`);
+      }
+    } catch (e) {
+      console.error('Error deleting preset:', e);
+      alert('Error deleting preset. Please try again.');
+    }
+  }
+  
+  // Default values management
+  function setupDefaultValuesManagement() {
+    const saveDefaultsBtn = document.getElementById('saveDefaultsBtn');
+    const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+    
+    // Load saved user defaults into the default values form
+    loadUserDefaultsToForm();
+    
+    // Save defaults button
+    saveDefaultsBtn.addEventListener('click', function() {
+      saveUserDefaults();
+      alert('Default values saved successfully!');
+    });
+    
+    // Reset to system defaults button
+    resetDefaultsBtn.addEventListener('click', function() {
+      if (confirm('Reset to system defaults? This will remove your custom default values.')) {
+        localStorage.removeItem('sip_user_defaults');
+        loadSystemDefaultsToForm();
+        alert('Reset to system defaults successfully!');
+      }
+    });
+  }
+  
+  // Get current default values from form
+  function getCurrentDefaultValues() {
+    return {
+      mode: 'sip', // Always default to SIP calculation mode
+      years: document.getElementById('defaultYears').value,
+      sip: document.getElementById('defaultSip').value,
+      rate: document.getElementById('defaultRate').value,
+      inflAdj: 'yes', // Always default to inflation-adjusted
+      infl: document.getElementById('defaultInflation').value,
+      stepType: document.getElementById('defaultStepType').value,
+      stepValue: document.getElementById('defaultStepValue').value,
+      targetCorpus: document.getElementById('defaultTargetCorpus').value,
+      corpusUnit: document.getElementById('defaultCorpusUnit').value
+    };
+  }
+  
+  // Save user defaults
+  function saveUserDefaults() {
+    try {
+      const defaultValues = getCurrentDefaultValues();
+      localStorage.setItem('sip_user_defaults', JSON.stringify(defaultValues));
+    } catch (e) {
+      console.error('Error saving user defaults:', e);
+      alert('Error saving defaults. Please try again.');
+    }
+  }
+  
+  // Load user defaults to form
+  function loadUserDefaultsToForm() {
+    try {
+      const userDefaults = JSON.parse(localStorage.getItem('sip_user_defaults'));
+      if (userDefaults) {
+        // Apply to default values form
+        if (userDefaults.years) document.getElementById('defaultYears').value = userDefaults.years;
+        if (userDefaults.sip) document.getElementById('defaultSip').value = userDefaults.sip;
+        if (userDefaults.rate) document.getElementById('defaultRate').value = userDefaults.rate;
+        if (userDefaults.infl) document.getElementById('defaultInflation').value = userDefaults.infl;
+        if (userDefaults.stepType) document.getElementById('defaultStepType').value = userDefaults.stepType;
+        if (userDefaults.stepValue) document.getElementById('defaultStepValue').value = userDefaults.stepValue;
+        if (userDefaults.targetCorpus) document.getElementById('defaultTargetCorpus').value = userDefaults.targetCorpus;
+        if (userDefaults.corpusUnit) document.getElementById('defaultCorpusUnit').value = userDefaults.corpusUnit;
+      } else {
+        // If no user defaults, load system defaults
+        loadSystemDefaultsToForm();
+      }
+    } catch (e) {
+      console.error('Error loading user defaults to form:', e);
+      // If error, load system defaults
+      loadSystemDefaultsToForm();
+    }
+  }
+  
+  // Load system defaults to form
+  function loadSystemDefaultsToForm() {
+    document.getElementById('defaultYears').value = '10';
+    document.getElementById('defaultSip').value = '25000';
+    document.getElementById('defaultRate').value = '12';
+    document.getElementById('defaultInflation').value = '6';
+    document.getElementById('defaultStepType').value = 'none';
+    document.getElementById('defaultStepValue').value = '10';
+    document.getElementById('defaultTargetCorpus').value = '1';
+    document.getElementById('defaultCorpusUnit').value = '10000000'; // 1 Cr
+  }
+  
+  // Reset to default settings
+  function resetToDefaultSettings() {
+    // Load user-defined defaults if available, otherwise use system defaults
+    try {
+      const userDefaults = JSON.parse(localStorage.getItem('sip_user_defaults'));
+      if (userDefaults) {
+        applySettings(userDefaults);
+        return;
+      }
+    } catch (e) {
+      console.error('Error loading user defaults:', e);
+    }
+    
+    // System default values
+    const systemDefaults = {
+      mode: 'sip',
+      years: '10',
+      sip: '25000',
+      rate: '12',
+      inflAdj: 'yes',
+      infl: '6',
+      stepType: 'none',
+      stepValue: '10',
+      targetCorpus: '1',
+      corpusUnit: '10000000' // 1 Cr
+    };
+    
+    applySettings(systemDefaults);
+  }
+  </script>
 
 </body>
 </html>
