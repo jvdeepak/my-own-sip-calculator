@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>SIP Calculator (India) — Live, Single-File</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* THEME TOKENS */
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#22c55e; --accent2:#3b82f6; --warn:#f59e0b; --danger:#ef4444; --border:#1f2937;
+      --btn:#0b1324; --btn-text:#e5e7eb; --table-stripe: rgba(255,255,255,.03);
+    }
+    [data-theme="light"]{
+      --bg:#f8fafc; --panel:#ffffff; --muted:#64748b; --text:#0f172a;
+      --accent:#16a34a; --accent2:#2563eb; --warn:#d97706; --danger:#dc2626; --border:#e2e8f0;
+      --btn:#f1f5f9; --btn-text:#0f172a; --table-stripe: rgba(15,23,42,.04);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; min-height:100%;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial;
+      background:linear-gradient(160deg,var(--bg) 0%, var(--panel) 60%, var(--bg) 100%) fixed;
+      color:var(--text);
+    }
+
+    header{ padding:24px 16px; text-align:center; position:relative; }
+    header h1{margin:.1rem 0 .4rem; font-size:1.6rem}
+    header p{color:var(--muted); margin:0; font-size:.95rem}
+
+    .topbar{ position:absolute; right:12px; top:12px; display:flex; gap:8px; }
+    .iconbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px; padding:8px 10px; border-radius:12px; border:1px solid var(--border);
+      background:var(--btn); color:var(--btn-text); cursor:pointer; user-select:none;
+    }
+    .iconbtn:focus{ outline:2px solid var(--accent2); outline-offset:2px }
+    .iconbtn svg{ width:18px; height:18px; }
+
+    .container{ max-width:1200px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns: 1.2fr .8fr }
+    @media (max-width: 1100px){ .container{ grid-template-columns: 1fr; } }
+
+    .card{
+      background:color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid var(--border);
+      border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.15);
+      backdrop-filter: blur(6px);
+    }
+    .card h2{margin:.2rem 0 1rem; font-size:1.15rem; color:var(--text)}
+    .row{display:grid; gap:12px; grid-template-columns: 1fr 1fr}
+    .row-3{display:grid; gap:12px; grid-template-columns: 1fr 1fr 1fr}
+    @media (max-width: 680px){ .row, .row-3{ grid-template-columns: 1fr; } }
+    label{display:block; font-size:.9rem; color:var(--text); margin-bottom:.35rem}
+    input[type="number"], select{
+      width:100%; padding:.65rem .7rem; border-radius:12px; border:1px solid var(--border);
+      background:var(--btn); color:var(--text); outline:none;
+    }
+    input[type="range"]{ width:100% }
+    .tiny{font-size:.82rem; color:var(--muted)}
+    .help{font-size:.8rem; color:var(--muted); margin-top:.25rem}
+    .pill{display:inline-block; padding:.18rem .5rem; border-radius:999px; font-size:.75rem;
+      border:1px solid var(--border); background:var(--btn); color:var(--btn-text)}
+    .sublabel{ display:flex; justify-content:space-between; gap:8px; align-items:baseline }
+    .slider-value{ font-variant-numeric: tabular-nums; color:var(--text); font-size:.9rem }
+    .sep{ height:1px; background:var(--border); margin:12px 0 }
+    .right{ text-align:right }
+
+    .out{ display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
+    @media (max-width:680px){ .out{ grid-template-columns:1fr; } }
+    .metric{ padding:14px; border:1px dashed var(--border); border-radius:14px;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent2) 8%, transparent)); }
+    .metric .k{ font-size:.9rem; color:var(--text) }
+    .metric .v{ font-weight:700; font-size:1.35rem; margin-top:.25rem; color:var(--text) }
+
+    /* SETTINGS */
+    details.settings{ margin-top:10px }
+    details.settings summary{
+      list-style:none; cursor:pointer; user-select:none; padding:10px 12px; border-radius:12px;
+      background:var(--btn); border:1px solid var(--border); display:flex; align-items:center; gap:10px; color:var(--text);
+    }
+    details.settings summary .carat{ width:14px; display:inline-block }
+    details.settings[open] summary .carat{ transform:rotate(90deg) }
+    .settings-body{ margin-top:10px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--panel) }
+    .grid-2{ display:grid; gap:12px; grid-template-columns:1fr 1fr }
+    @media (max-width:680px){ .grid-2{ grid-template-columns:1fr; } }
+
+    /* TABLE (Monthly Breakdown) */
+    .tablewrap{ border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--panel); }
+    .toolbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid var(--border); background:var(--btn) }
+    .toolbar .buttons{ display:flex; gap:8px; flex-wrap:wrap }
+    .table{ width:100%; border-collapse:collapse; font-size:.9rem }
+    .table thead th{ position:sticky; top:0; background:var(--btn); color:var(--text); border-bottom:1px solid var(--border); padding:8px; text-align:right }
+    .table thead th:first-child, .table tbody td:first-child{ text-align:left }
+    .table tbody td{ padding:6px 8px; border-bottom:1px solid var(--border); }
+    .table tbody tr:nth-child(odd){ background:var(--table-stripe); }
+    .scroll{ max-height:380px; overflow:auto }
+    .badge{ padding:.16rem .45rem; border-radius:999px; background:var(--btn); border:1px solid var(--border); font-size:.72rem; color:var(--btn-text) }
+    .warnbar{ font-size:.82rem; color:color-mix(in srgb, var(--warn) 90%, white); background:color-mix(in srgb, var(--warn) 18%, transparent);
+      border:1px solid color-mix(in srgb, var(--warn) 40%, transparent); padding:10px 12px; border-radius:12px }
+  </style>
+
+<style>
+/* Resizable output container styling */
+#output-container {
+    resize: both;
+    overflow: auto;
+    border: 2px solid var(--border-color, #888);
+    padding: 10px;
+    min-width: 300px;
+    min-height: 200px;
+    width: 100%; /* default full width */
+    box-sizing: border-box;
+}
+
+/* Make the resize handle more visible */
+#output-container::-webkit-resizer {
+    background: repeating-linear-gradient(
+        45deg,
+        #888,
+        #888 2px,
+        transparent 2px,
+        transparent 4px
+    );
+}
+
+</style>
+
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <button id="themeBtn" class="iconbtn" title="Toggle dark/light (remembers)">
+        <svg id="themeIcon" viewBox="0 0 24 24" aria-hidden="true">
+          <path id="moon" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+        </svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+      <button id="gearBtn" class="iconbtn" title="Open Settings (remembers)">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19.14,12.94a7.21,7.21,0,0,0,.05-.94,7.21,7.21,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.73,2H10.27a.5.5,0,0,0-.49.41L9.4,5.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.21,7.21,0,0,0-.05.94,7.21,7.21,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.46a.5.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <h1>Indian SIP Calculator — Live</h1>
+    <p>Type anywhere. Choose what to <strong>compute</strong>. See results in ₹, lakhs & crores.</p>
+  </header>
+
+  <main class="container">
+    <!-- LEFT: Inputs -->
+    <section class="card" aria-labelledby="inputsHdr">
+      <h2 id="inputsHdr">Inputs</h2>
+
+      <div class="row">
+        <div>
+          <label for="mode">Compute</label>
+          <select id="mode" aria-describedby="modeHelp">
+            <option value="corpus">Total corpus</option>
+            <option value="sip">Monthly SIP</option>
+            <option value="years">Years</option>
+            <option value="rate">Rate of return</option>
+          </select>
+          <div id="modeHelp" class="help">Pick the unknown. I’ll solve for it numerically.</div>
+        </div>
+
+        <div>
+          <label for="years">Years</label>
+          <input id="years" type="number" min="0" max="80" step="0.25" value="20" inputmode="decimal" />
+          <div class="help">You can enter decimals (e.g., 15.5 years).</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="sublabel">
+            <label for="sip">Monthly SIP (₹)</label>
+            <div class="slider-value" id="sipLive">₹ 25,000</div>
+          </div>
+          <input id="sip" type="number" min="0" step="100" value="25000" />
+          <input id="sipRange" type="range" min="0" max="300000" step="500" value="25000" aria-label="Monthly SIP slider"/>
+        </div>
+
+        <div>
+          <div class="sublabel">
+            <label for="rate">Expected annual return (%)</label>
+            <div class="slider-value" id="rateLive">12.00%</div>
+          </div>
+          <input id="rate" type="number" min="0" max="50" step="0.1" value="12" />
+          <input id="rateRange" type="range" min="0" max="50" step="0.1" value="12" aria-label="Rate slider"/>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="inflAdj">Inflation-adjusted return?</label>
+          <select id="inflAdj">
+            <option value="no">No (use nominal return)</option>
+            <option value="yes">Yes (use “real” return)</option>
+          </select>
+          <div class="help">When “Yes”, real return ≈ ((1+R)/(1+Inflation) − 1).</div>
+        </div>
+
+        <!-- Number box for precise typing; mirrored by slider in Settings -->
+        <div id="inflWrap">
+          <label for="infl">Inflation (%)</label>
+          <input id="infl" type="number" min="3" max="15" step="0.1" value="5" />
+          <div class="help">Quickly adjust via <b>Settings → Inflation slider</b> (3%–15%).</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="stepType">Step-up each year</label>
+          <select id="stepType" aria-describedby="stepHelp">
+            <option value="none">None</option>
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed ₹</option>
+          </select>
+          <div id="stepHelp" class="help">Applies at each 12-month boundary.</div>
+        </div>
+
+        <div id="stepValueWrap">
+          <label for="stepValue">Step-up value</label>
+          <input id="stepValue" type="number" min="0" step="0.1" value="10" />
+          <div class="help" id="stepValueHint">If %: 10 → +10% yearly. If ₹: adds to monthly SIP each year.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="targetCorpus">Target corpus (₹)</label>
+          <input id="targetCorpus" type="number" min="0" step="1000" value="0" />
+          <div class="help">Used when computing Monthly SIP / Years / Rate.</div>
+        </div>
+        <div class="tiny right">
+          <span class="pill">Live</span> Results update as you type or drag sliders.
+        </div>
+      </div>
+
+      <!-- Collapsible Settings -->
+      <details class="settings" id="settingsPanel">
+        <summary aria-controls="settingsBody" aria-expanded="false">
+          <span class="carat">▶</span> Settings
+        </summary>
+        <div id="settingsBody" class="settings-body">
+          <div class="row">
+            <div>
+              <div class="sublabel">
+                <label for="inflRange">Inflation slider (3%–15%)</label>
+                <div class="slider-value" id="inflLive">5.0%</div>
+              </div>
+              <input id="inflRange" type="range" min="3" max="15" step="0.1" value="5" aria-label="Inflation slider"/>
+              <div class="help">Adjusts the same Inflation field above (kept in sync).</div>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <div class="tiny">Compounding: <span class="pill">Monthly</span></div>
+              <div class="tiny">Step-ups: <span class="pill">At month 13, 25, …</span></div>
+              <div class="tiny">Theme: <span class="pill" id="themeStateBadge">Dark</span></div>
+              <div class="tiny">Settings open: <span class="pill" id="settingsStateBadge">No</span></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="sep"></div>
+      <div class="grid-2">
+        <div class="tiny">Numerical solver status: <span id="solverStatus" class="badge">Idle</span></div>
+        <div class="right tiny">Precision: <span class="badge">Δ ≤ 0.01%</span></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Outputs -->
+    <section class="card" id="output-container" aria-labelledby="outputsHdr">
+      <h2 id="outputsHdr">Outputs</h2>
+      <div id="alerts" class="tiny"></div>
+
+      <div class="out" style="margin-top:6px">
+        <div class="metric">
+          <div class="k">Final corpus</div>
+          <div class="v" id="outCorpus">₹ 0</div>
+          <div class="tiny muted" id="outCorpusShort">—</div>
+        </div>
+        <div class="metric">
+          <div class="k">Total invested</div>
+          <div class="v" id="outInvested">₹ 0</div>
+          <div class="tiny muted">Gains: <span id="outGains">₹ 0</span></div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="row-3">
+        <div class="tiny"><div class="k muted">Monthly SIP used</div><div class="v" id="usedSip">₹ 0</div></div>
+        <div class="tiny"><div class="k muted">Years used</div><div class="v" id="usedYears">0</div></div>
+        <div class="tiny"><div class="k muted">Return (nominal or real)</div><div class="v" id="usedRate">0%</div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- Monthly breakdown table + downloads -->
+      <div class="tablewrap">
+        <div class="toolbar">
+          <div class="tiny">Monthly breakdown (auto-updates)</div>
+          <div class="buttons">
+            <button id="btnCsv" class="iconbtn" title="Download CSV">CSV</button>
+            <button id="btnXls" class="iconbtn" title="Download Excel (.xls)">Excel</button>
+          </div>
+        </div>
+        <div class="scroll">
+          <table class="table" id="scheduleTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Year</th>
+                <th>Month</th>
+                <th>Monthly SIP (₹)</th>
+                <th>Monthly Rate (%)</th>
+                <th>Interest (₹)</th>
+                <th>End Balance (₹)</th>
+                <th>Cumulative Invested (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="footnote">
+        Currency formatting: <code>en-IN</code> (lakhs/crores). Estimates only; not financial advice.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* Theme toggle with persistence */
+    const themeBtn = document.getElementById('themeBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+    const themeStateBadge = document.getElementById('themeStateBadge');
+    function getPreferredTheme(){
+      const saved = localStorage.getItem('sip_theme');
+      if(saved === 'dark' || saved === 'light') return saved;
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return prefersDark ? 'dark' : 'light';
+    }
+    function applyTheme(theme){
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('sip_theme', theme);
+      themeLabel.textContent = theme === 'dark' ? 'Dark' : 'Light';
+      themeStateBadge.textContent = theme === 'dark' ? 'Dark' : 'Light';
+      themeIcon.innerHTML = theme === 'dark'
+        ? '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>'
+        : '<path d="M6.76 4.84l-1.8-1.79M1 12H3m8-8V1m7.24 3.84l1.8-1.79M23 12h-2M12 23v-2m3.76-1.84l1.8 1.79M4.24 19.16l-1.8 1.79M12 7a5 5 0 100 10 5 5 0 000-10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    themeBtn.addEventListener('click', ()=>{
+      const now = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(now);
+    });
+    applyTheme(getPreferredTheme());
+
+    /* Settings panel persistence + gear btn */
+    const settingsPanel = document.getElementById('settingsPanel');
+    const settingsStateBadge = document.getElementById('settingsStateBadge');
+    const gearBtn = document.getElementById('gearBtn');
+    function saveSettingsOpen(open){
+      localStorage.setItem('sip_settings_open', open ? '1' : '0');
+      settingsStateBadge.textContent = open ? 'Yes' : 'No';
+    }
+    (function restoreSettingsState(){
+      const open = localStorage.getItem('sip_settings_open') === '1';
+      settingsPanel.open = open;
+      saveSettingsOpen(open);
+    })();
+    settingsPanel.addEventListener('toggle', ()=>{ saveSettingsOpen(settingsPanel.open); });
+    gearBtn.addEventListener('click', ()=>{
+      const open = !settingsPanel.open;
+      settingsPanel.open = open;
+      saveSettingsOpen(open);
+      settingsPanel.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ const summary = settingsPanel.querySelector('summary'); summary && summary.focus(); }, 120);
+    });
+
+    /* Finance math + schedule generation */
+    const fmtINR = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 });
+    const toIndianShort = (n)=>{
+      if(!isFinite(n)) return '—';
+      const abs=Math.abs(n), sign=n<0?'-':'';
+      if(abs>=1e7) return sign+'₹ '+(abs/1e7).toFixed(2)+' Cr';
+      if(abs>=1e5) return sign+'₹ '+(abs/1e5).toFixed(2)+' L';
+      return sign+fmtINR.format(abs);
+    };
+    const clamp=(n,lo,hi)=>Math.min(Math.max(n,lo),hi);
+    const isPos=(n)=>isFinite(n)&&n>0;
+
+    function simulate({sip0, years, annRate, stepType, stepVal}){
+      const monthsTotal = Math.floor(Math.max(0, years) * 12 + 1e-6);
+      if(monthsTotal===0) return { corpus:0, invested:0, schedule:[] };
+      const mRate = Math.pow(1 + Math.max(-0.9999, annRate), 1/12) - 1;
+      let balance=0, invested=0;
+      const schedule = [];
+      for(let m=0; m<monthsTotal; m++){
+        const yearIndex = Math.floor(m/12);
+        const monthInYear = (m%12)+1;
+        const yearNo = yearIndex + 1;
+        let sipM = sip0;
+        if(stepType==='percent'){
+          const g = Math.max(-0.99, (stepVal||0)/100);
+          sipM = sip0 * Math.pow(1+g, yearIndex);
+        }else if(stepType==='fixed'){
+          sipM = sip0 + (stepVal||0)*yearIndex;
+        }
+        sipM = Math.max(0, sipM);
+        // Contribution at start
+        balance += sipM;
+        invested += sipM;
+        // Growth
+        const interest = mRate!==0 ? balance * mRate : 0;
+        balance += interest;
+
+        schedule.push({
+          idx: m+1,
+          year: yearNo,
+          month: monthInYear,
+          sip: sipM,
+          mRate: mRate*100,
+          interest: interest,
+          endBalance: balance,
+          cumInvested: invested
+        });
+      }
+      return { corpus:balance, invested, schedule };
+    }
+
+    function runModel({ sip0, years, annRateNominal, inflPct, inflAdj, stepType, stepVal }){
+      const infl = Math.max(0, inflPct)/100;
+      const rAnnual = inflAdj ? ((1+annRateNominal)/(1+infl)-1) : annRateNominal;
+      return simulate({ sip0, years, annRate:rAnnual, stepType, stepVal });
+    }
+
+    function solveMonthlyForCorpus(target, params){
+      if(!isPos(target)) return {ok:false,value:0,msg:'Invalid target corpus'};
+      let lo=0, hi=1_000; const f=s=>runModel({...params,sip0:s}).corpus;
+      while(f(hi)<target && hi<1e7) hi*=2;
+      if(hi>=1e7 && f(hi)<target) return {ok:false,value:hi,msg:'Target too high for feasible SIP in this range.'};
+      for(let i=0;i<60;i++){ const mid=(lo+hi)/2, v=f(mid); if(Math.abs(v-target)<=Math.max(1,target)*1e-4) return {ok:true,value:mid,msg:'Converged'}; (v<target?lo=mid:hi=mid); }
+      return {ok:true,value:(lo+hi)/2,msg:'Max iterations reached'};
+    }
+    function solveYearsForCorpus(target, params){
+      if(!isPos(target)) return {ok:false,value:0,msg:'Invalid target corpus'};
+      let lo=0, hi=80; const f=y=>runModel({...params,years:y}).corpus;
+      while(f(hi)<target && hi<200) hi*=1.5;
+      if(hi>=200 && f(hi)<target) return {ok:false,value:hi,msg:'Target too high for given SIP/rate/step.'};
+      for(let i=0;i<60;i++){ const mid=(lo+hi)/2, v=f(mid); if(Math.abs(v-target)<=Math.max(1,target)*1e-4) return {ok:true,value:mid,msg:'Converged'}; (v<target?lo=mid:hi=mid); }
+      return {ok:true,value:(lo+hi)/2,msg:'Max iterations reached'};
+    }
+    function solveRateForCorpus(target, params){
+      if(!isPos(target)) return {ok:false,value:0,msg:'Invalid target corpus'};
+      let lo=0.0, hi=1.0; const f=r=>runModel({...params,annRateNominal:r}).corpus;
+      while(f(hi)<target && hi<2.0) hi*=1.25;
+      if(hi>=2.0 && f(hi)<target) return {ok:false,value:hi,msg:'Target too high for rate ≤ 200%.'};
+      for(let i=0;i<70;i++){ const mid=(lo+hi)/2, v=f(mid); if(Math.abs(v-target)<=Math.max(1,target)*1e-4) return {ok:true,value:mid,msg:'Converged'}; (v<target?lo=mid:hi=mid); }
+      return {ok:true,value:(lo+hi)/2,msg:'Max iterations reached'};
+    }
+
+    /* DOM */
+    const el = id => document.getElementById(id);
+    const ui = {
+      mode: el('mode'),
+      years: el('years'),
+      sip: el('sip'), sipRange: el('sipRange'), sipLive: el('sipLive'),
+      rate: el('rate'), rateRange: el('rateRange'), rateLive: el('rateLive'),
+      inflAdj: el('inflAdj'), infl: el('infl'), inflWrap: el('inflWrap'),
+      inflRange: el('inflRange'), inflLive: el('inflLive'),
+      stepType: el('stepType'), stepValue: el('stepValue'), stepValueWrap: el('stepValueWrap'), stepValueHint: el('stepValueHint'),
+      targetCorpus: el('targetCorpus'), solverStatus: el('solverStatus'), alerts: el('alerts'),
+      outCorpus: el('outCorpus'), outCorpusShort: el('outCorpusShort'), outInvested: el('outInvested'), outGains: el('outGains'),
+      usedSip: el('usedSip'), usedYears: el('usedYears'), usedRate: el('usedRate'),
+      scheduleBody: el('scheduleBody'),
+      btnCsv: el('btnCsv'), btnXls: el('btnXls')
+    };
+
+    function updateStepUI(){
+      const type = ui.stepType.value;
+      ui.stepValueWrap.style.display = (type === 'none') ? 'none' : '';
+      ui.stepValueHint.textContent = (type === 'percent')
+        ? 'If %: 10 → +10% yearly (applied to monthly SIP each year).'
+        : 'If ₹: this amount is added to the monthly SIP each year.';
+    }
+    function updateInflUI(){
+      ui.inflWrap.style.display = (ui.inflAdj.value === 'yes') ? '' : 'none';
+    }
+    function setSolverStatus(msg, tone='idle'){
+      ui.solverStatus.textContent = msg;
+      const style =
+        tone==='ok'  ? 'background:#072810;border-color:#14532d;color:#bbf7d0' :
+        tone==='warn'? 'background:#3a2507;border-color:#92400e;color:#fde68a' :
+        tone==='err' ? 'background:#3a0f0f;border-color:#7f1d1d;color:#fecaca' :
+                       'background:var(--btn);border-color:var(--border);color:var(--btn-text)';
+      ui.solverStatus.setAttribute('style', `padding:.16rem .45rem;border-radius:999px;${style}`);
+    }
+    function showAlert(html){ ui.alerts.innerHTML = '<div class="warnbar">'+html+'</div>'; }
+    function clearAlert(){ ui.alerts.innerHTML=''; }
+    function syncSliderDisplays(){
+      const sipVal = clamp(Number(ui.sip.value)||0, 0, 3000000);
+      ui.sipRange.value = clamp(sipVal, Number(ui.sipRange.min), Number(ui.sipRange.max));
+      ui.sipLive.textContent = toIndianShort(sipVal);
+
+      const rateVal = clamp(Number(ui.rate.value)||0, 0, 200);
+      ui.rateRange.value = clamp(rateVal, Number(ui.rateRange.min), Number(ui.rateRange.max));
+      ui.rateLive.textContent = rateVal.toFixed(2) + '%';
+
+      let inflVal = clamp(Number(ui.infl.value)||0, Number(ui.inflRange.min), Number(ui.inflRange.max));
+      ui.infl.value = inflVal.toFixed(1);
+      ui.inflRange.value = inflVal;
+      ui.inflLive.textContent = Number(ui.inflRange.value).toFixed(1) + '%';
+    }
+    function renderOutputs({corpus, invested, used}){
+      ui.outCorpus.textContent = fmtINR.format(Math.round(corpus));
+      ui.outCorpusShort.textContent = toIndianShort(corpus);
+      ui.outInvested.textContent = fmtINR.format(Math.round(invested));
+      ui.outGains.textContent = fmtINR.format(Math.round(corpus - invested));
+      ui.usedSip.textContent = toIndianShort(used.sip0);
+      ui.usedYears.textContent = (used.years).toFixed(2);
+      ui.usedRate.textContent = (used.ratePct).toFixed(2) + '%';
+    }
+    function readInputs(){
+      const mode = ui.mode.value;
+      const sip0 = Math.max(0, Number(ui.sip.value) || 0);
+      const years = clamp(Number(ui.years.value) || 0, 0, 200);
+      const ratePct = clamp(Number(ui.rate.value) || 0, 0, 200);
+      const inflPct = clamp(Number(ui.infl.value) || 0, Number(ui.inflRange.min), Number(ui.inflRange.max));
+      const inflAdj = ui.inflAdj.value === 'yes';
+      const stepType = ui.stepType.value;
+      const stepValue = Math.max(0, Number(ui.stepValue.value) || 0);
+      const targetCorpus = Math.max(0, Number(ui.targetCorpus.value) || 0);
+      return { mode, sip0, years, ratePct, annRateNominal: ratePct/100, inflPct, inflAdj,
+               stepType, stepVal: stepValue, targetCorpus };
+    }
+
+    /* Schedule table render */
+    function renderSchedule(schedule){
+      const rows = schedule.map(r => {
+        return '<tr>'
+          + '<td>'+r.idx+'</td>'
+          + '<td>'+r.year+'</td>'
+          + '<td>'+r.month+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.sip))+'</td>'
+          + '<td style="text-align:right">'+r.mRate.toFixed(4)+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.interest))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.endBalance))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.cumInvested))+'</td>'
+          + '</tr>';
+      }).join('');
+      ui.scheduleBody.innerHTML = rows || '<tr><td colspan="8" class="tiny">No data</td></tr>';
+    }
+
+    /* Downloads: CSV and Excel (SpreadsheetML .xls) */
+    function download(filename, blob){
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 100);
+    }
+    function toCSV(schedule){
+      const header = ['Month#','Year','Month','Monthly SIP (INR)','Monthly Rate (%)','Interest (INR)','End Balance (INR)','Cumulative Invested (INR)'];
+      const lines = schedule.map(r => [
+        r.idx, r.year, r.month,
+        Math.round(r.sip),
+        r.mRate.toFixed(6),
+        Math.round(r.interest),
+        Math.round(r.endBalance),
+        Math.round(r.cumInvested)
+      ].join(','));
+      return header.join(',') + '\n' + lines.join('\n');
+    }
+    function toXLS(schedule){
+      // Minimal Excel 2003 XML Spreadsheet; opens in Excel, Numbers, LibreOffice.
+      function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+      let xml = '<?xml version="1.0"?>\n'
+        + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"'
+        + ' xmlns:o="urn:schemas-microsoft-com:office:office"'
+        + ' xmlns:x="urn:schemas-microsoft-com:office:excel"'
+        + ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n'
+        + '<Worksheet ss:Name="SIP Schedule"><Table>\n';
+      const header = ['Month#','Year','Month','Monthly SIP (INR)','Monthly Rate (%)','Interest (INR)','End Balance (INR)','Cumulative Invested (INR)'];
+      xml += '<Row>' + header.map(h=>'<Cell><Data ss:Type="String">'+esc(h)+'</Data></Cell>').join('') + '</Row>\n';
+      for(const r of schedule){
+        xml += '<Row>'
+          + `<Cell><Data ss:Type="Number">${r.idx}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${r.year}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${r.month}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${Math.round(r.sip)}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${Number(r.mRate.toFixed(6))}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${Math.round(r.interest)}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${Math.round(r.endBalance)}</Data></Cell>`
+          + `<Cell><Data ss:Type="Number">${Math.round(r.cumInvested)}</Data></Cell>`
+          + '</Row>\n';
+      }
+      xml += '</Table></Worksheet></Workbook>';
+      return xml;
+    }
+
+    function computeAndRender(){
+      clearAlert(); updateStepUI(); updateInflUI(); syncSliderDisplays();
+      const I = readInputs();
+
+      if(I.mode !== 'corpus' && !isPos(I.targetCorpus)){
+        showAlert('To compute <b>'+I.mode.toUpperCase()+'</b>, please provide a positive <b>Target corpus</b>.');
+      }
+
+      if(I.mode === 'corpus'){
+        setSolverStatus('Idle','idle');
+        const { corpus, invested, schedule } = runModel(I);
+        renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct } });
+        renderSchedule(schedule);
+        currentSchedule = schedule;
+        return;
+      }
+      if(I.mode === 'sip'){
+        setSolverStatus('Solving…','warn');
+        const res = solveMonthlyForCorpus(I.targetCorpus, I);
+        if(res.ok){
+          setSolverStatus(res.msg,'ok');
+          const sipSolved = Math.max(0, res.value);
+          ui.sip.value = String(Math.round(sipSolved));
+          syncSliderDisplays();
+          const { corpus, invested, schedule } = runModel({ ...I, sip0:sipSolved });
+          renderOutputs({ corpus, invested, used: { sip0:sipSolved, years:I.years, ratePct:I.ratePct } });
+          renderSchedule(schedule);
+          currentSchedule = schedule;
+        }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
+        return;
+      }
+      if(I.mode === 'years'){
+        setSolverStatus('Solving…','warn');
+        const res = solveYearsForCorpus(I.targetCorpus, I);
+        if(res.ok){
+          setSolverStatus(res.msg,'ok');
+          const ySolved = clamp(res.value, 0, 200);
+          ui.years.value = ySolved.toFixed(2);
+          const { corpus, invested, schedule } = runModel({ ...I, years:ySolved });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:ySolved, ratePct:I.ratePct } });
+          renderSchedule(schedule);
+          currentSchedule = schedule;
+        }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
+        return;
+      }
+      if(I.mode === 'rate'){
+        setSolverStatus('Solving…','warn');
+        const res = solveRateForCorpus(I.targetCorpus, I);
+        if(res.ok){
+          setSolverStatus(res.msg,'ok');
+          const rSolvedPct = clamp(res.value*100, 0, 200);
+          ui.rate.value = rSolvedPct.toFixed(2);
+          syncSliderDisplays();
+          const { corpus, invested, schedule } = runModel({ ...I, annRateNominal:rSolvedPct/100 });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:rSolvedPct } });
+          renderSchedule(schedule);
+          currentSchedule = schedule;
+        }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
+        return;
+      }
+    }
+
+    // Keep a reference for downloads
+    let currentSchedule = [];
+
+    // Wire inputs
+    [
+      ui.mode, ui.years, ui.sip, ui.rate, ui.inflAdj, ui.infl, ui.stepType, ui.stepValue, ui.targetCorpus
+    ].forEach(e => e.addEventListener('input', computeAndRender));
+    ui.sipRange.addEventListener('input', ()=>{ ui.sip.value = ui.sipRange.value; computeAndRender(); });
+    ui.rateRange.addEventListener('input', ()=>{ ui.rate.value = ui.rateRange.value; computeAndRender(); });
+    ui.inflRange.addEventListener('input', ()=>{ ui.infl.value = Number(ui.inflRange.value).toFixed(1); computeAndRender(); });
+    ui.infl.addEventListener('input', ()=>{
+      let v = clamp(Number(ui.infl.value)||0, Number(ui.inflRange.min), Number(ui.inflRange.max));
+      ui.infl.value = v.toFixed(1); ui.inflRange.value = v; computeAndRender();
+    });
+
+    // Downloads
+    ui.btnCsv.addEventListener('click', ()=>{
+      const csv = toCSV(currentSchedule);
+      download('sip_monthly_breakdown.csv', new Blob([csv], {type:'text/csv;charset=utf-8'}));
+    });
+    ui.btnXls.addEventListener('click', ()=>{
+      const xls = toXLS(currentSchedule);
+      download('sip_monthly_breakdown.xls', new Blob([xls], {type:'application/vnd.ms-excel'}));
+    });
+
+    // Init
+    computeAndRender();
+  </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById("output-container");
+    if (!container) return;
+
+    // Restore size from localStorage
+    const savedWidth = localStorage.getItem("outputContainerWidth");
+    const savedHeight = localStorage.getItem("outputContainerHeight");
+    if (savedWidth) container.style.width = savedWidth;
+    if (savedHeight) container.style.height = savedHeight;
+
+    // Observe resize and save size
+    let resizeObserver = new ResizeObserver(() => {
+        localStorage.setItem("outputContainerWidth", container.style.width);
+        localStorage.setItem("outputContainerHeight", container.style.height);
+    });
+    resizeObserver.observe(container);
+});
+</script>
+
+</body>
+</html>
