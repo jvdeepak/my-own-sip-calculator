@@ -203,10 +203,9 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.85rem;
-      flex: 1 1 auto; /* Make table grow to fill available space */
     }
     .table th, .table td {
-      padding: 8px 12px;
+      padding: 4px 12px;
       text-align: left;
       border-bottom: 1px solid var(--border);
     }
@@ -222,6 +221,29 @@
     }
     .table tbody tr:hover {
       background: color-mix(in srgb, var(--accent2) 8%, transparent);
+    }
+    .year-row {
+      background: color-mix(in srgb, var(--accent) 8%, var(--panel)) !important;
+      transition: background 0.2s ease;
+    }
+    .year-row td {
+      padding: 4px 12px !important;
+    }
+    .year-row:hover {
+      background: color-mix(in srgb, var(--accent) 15%, var(--panel)) !important;
+    }
+    .expand-icon {
+      display: inline-block;
+      transition: transform 0.2s ease;
+      font-size: 0.8rem;
+      user-select: none;
+    }
+    .month-row {
+      font-size: 0.9em;
+      color: var(--muted);
+    }
+    .month-row td {
+      padding: 3px 12px !important;
     }
     .badge{ padding:.16rem .45rem; border-radius:999px; background:var(--btn); border:1px solid var(--border); font-size:.72rem; color:var(--btn-text) }
     .warnbar{ font-size:.82rem; color:color-mix(in srgb, var(--warn) 90%, white); background:color-mix(in srgb, var(--warn) 18%, transparent);
@@ -555,8 +577,8 @@
           </div>
           <div class="metric" style="padding: 8px;">
             <div class="k">Total invested</div>
-            <div class="v" id="outInvested">₹ 0</div>
-            <div class="tiny muted">Gains: <span id="outGains">₹ 0</span></div>
+            <div class="v" id="outInvested">₹ 0 <span class="tiny muted" id="outInvestedShort"></span></div>
+            <div class="tiny muted">Gains: <span id="outGains">₹ 0</span> <span id="outGainsShort"></span></div>
           </div>
         </div>
 
@@ -583,12 +605,11 @@
           <table class="table" id="scheduleTable">
             <thead>
               <tr>
-                <th>#</th>
+                <th style="width: 30px;"></th>
                 <th>Year</th>
-                <th>Month</th>
                 <th>Monthly SIP (₹)</th>
-                <th>Monthly Rate (%)</th>
-                <th>Interest (₹)</th>
+                <th>Yearly Investment (₹)</th>
+                <th>Yearly Interest (₹)</th>
                 <th>End Balance (₹)</th>
                 <th>Cumulative Invested (₹)</th>
               </tr>
@@ -747,7 +768,8 @@
       inflRange: el('inflRange'), inflLive: el('inflLive'),
       stepType: el('stepType'), stepValue: el('stepValue'), stepValueWrap: el('stepValueWrap'), stepValueHint: el('stepValueHint'),
       targetCorpus: el('targetCorpus'), solverStatus: el('solverStatus'), alerts: el('alerts'),
-      outCorpus: el('outCorpus'), outCorpusShort: el('outCorpusShort'), outInvested: el('outInvested'), outGains: el('outGains'),
+      outCorpus: el('outCorpus'), outCorpusShort: el('outCorpusShort'), outInvested: el('outInvested'), outInvestedShort: el('outInvestedShort'),
+      outGains: el('outGains'), outGainsShort: el('outGainsShort'),
       usedSip: el('usedSip'), usedYears: el('usedYears'), usedRate: el('usedRate'),
       scheduleBody: el('scheduleBody'),
       btnCsv: el('btnCsv'), btnXls: el('btnXls')
@@ -789,10 +811,13 @@
       ui.inflLive.textContent = Number(ui.inflRange.value).toFixed(1) + '%';
     }
     function renderOutputs({corpus, invested, used}){
+      const gains = corpus - invested;
       ui.outCorpus.textContent = fmtINR.format(Math.round(corpus));
       ui.outCorpusShort.textContent = toIndianShort(corpus);
       ui.outInvested.textContent = fmtINR.format(Math.round(invested));
-      ui.outGains.textContent = fmtINR.format(Math.round(corpus - invested));
+      ui.outInvestedShort.textContent = '(' + toIndianShort(invested) + ')';
+      ui.outGains.textContent = fmtINR.format(Math.round(gains));
+      ui.outGainsShort.textContent = '(' + toIndianShort(gains) + ')';
       ui.usedSip.textContent = toIndianShort(used.sip0);
       ui.usedYears.textContent = (used.years).toFixed(2);
       ui.usedRate.textContent = (used.ratePct).toFixed(2) + '%';
@@ -817,19 +842,71 @@
 
     /* Schedule table render */
     function renderSchedule(schedule){
-      const rows = schedule.map(r => {
-        return '<tr>'
-          + '<td>'+r.idx+'</td>'
-          + '<td>'+r.year+'</td>'
-          + '<td>'+r.month+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.sip))+'</td>'
-          + '<td style="text-align:right">'+r.mRate.toFixed(4)+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.interest))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.endBalance))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(r.cumInvested))+'</td>'
+      if(!schedule || schedule.length === 0) {
+        ui.scheduleBody.innerHTML = '<tr><td colspan="7" class="tiny">No data</td></tr>';
+        return;
+      }
+
+      // Group schedule by year
+      const yearGroups = {};
+      schedule.forEach(r => {
+        if(!yearGroups[r.year]) {
+          yearGroups[r.year] = [];
+        }
+        yearGroups[r.year].push(r);
+      });
+
+      let html = '';
+      Object.keys(yearGroups).forEach(year => {
+        const months = yearGroups[year];
+        const lastMonth = months[months.length - 1];
+
+        // Calculate yearly totals
+        const yearlySip = months[0].sip; // Monthly SIP amount for this year
+        const yearlyInvestment = months.reduce((sum, m) => sum + m.sip, 0);
+        const yearlyInterest = months.reduce((sum, m) => sum + m.interest, 0);
+
+        // Year summary row (always visible)
+        html += '<tr class="year-row" data-year="'+year+'" style="cursor:pointer; font-weight:600;">'
+          + '<td style="text-align:center;"><span class="expand-icon">▶</span></td>'
+          + '<td>Year '+year+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlySip))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInvestment))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInterest))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.endBalance))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.cumInvested))+'</td>'
           + '</tr>';
-      }).join('');
-      ui.scheduleBody.innerHTML = rows || '<tr><td colspan="8" class="tiny">No data</td></tr>';
+
+        // Monthly detail rows (hidden by default)
+        months.forEach(m => {
+          html += '<tr class="month-row" data-year="'+year+'" style="display:none; background: var(--table-stripe);">'
+            + '<td></td>'
+            + '<td style="padding-left:20px;">Month '+m.month+'</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.sip))+'</td>'
+            + '<td style="text-align:right">—</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.interest))+'</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.endBalance))+'</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.cumInvested))+'</td>'
+            + '</tr>';
+        });
+      });
+
+      ui.scheduleBody.innerHTML = html;
+
+      // Add click handlers for expand/collapse
+      document.querySelectorAll('.year-row').forEach(row => {
+        row.addEventListener('click', function() {
+          const year = this.getAttribute('data-year');
+          const monthRows = document.querySelectorAll('.month-row[data-year="'+year+'"]');
+          const icon = this.querySelector('.expand-icon');
+          const isExpanded = monthRows[0].style.display !== 'none';
+
+          monthRows.forEach(mr => {
+            mr.style.display = isExpanded ? 'none' : 'table-row';
+          });
+          icon.textContent = isExpanded ? '▶' : '▼';
+        });
+      });
     }
 
     /* Downloads: CSV and Excel (SpreadsheetML .xls) */
