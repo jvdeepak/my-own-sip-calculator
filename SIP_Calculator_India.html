@@ -639,6 +639,7 @@
                 <th style="width: 30px;"></th>
                 <th>Year</th>
                 <th style="text-align:right;">Monthly SIP (₹)</th>
+                <th style="text-align:right;">Lump Sum (₹)</th>
                 <th style="text-align:right;">Yearly Investment (₹)</th>
                 <th style="text-align:right;">Yearly Interest (₹)</th>
                 <th style="text-align:right;">End Balance (₹)</th>
@@ -718,11 +719,12 @@
     const clamp=(n,lo,hi)=>Math.min(Math.max(n,lo),hi);
     const isPos=(n)=>isFinite(n)&&n>0;
 
-    function simulate({sip0, years, annRate, stepType, stepVal, stopAfterYears}){
+    function simulate({sip0, years, annRate, stepType, stepVal, stopAfterYears, lumpSums}){
       const monthsTotal = Math.floor(Math.max(0, years) * 12 + 1e-6);
       if(monthsTotal===0) return { corpus:0, invested:0, schedule:[] };
       const mRate = Math.pow(1 + Math.max(-0.9999, annRate), 1/12) - 1;
       const stopAfterMonths = stopAfterYears !== undefined ? Math.floor(stopAfterYears * 12) : monthsTotal;
+      const lumpSumsMap = lumpSums || {};
       let balance=0, invested=0;
       const schedule = [];
       for(let m=0; m<monthsTotal; m++){
@@ -741,9 +743,11 @@
           }
           sipM = Math.max(0, sipM);
         }
+        // Add lump sum if exists for this month
+        const lumpSum = Number(lumpSumsMap[m]) || 0;
         // Contribution at start
-        balance += sipM;
-        invested += sipM;
+        balance += sipM + lumpSum;
+        invested += sipM + lumpSum;
         // Growth
         const interest = mRate!==0 ? balance * mRate : 0;
         balance += interest;
@@ -753,6 +757,7 @@
           year: yearNo,
           month: monthInYear,
           sip: sipM,
+          lumpSum: lumpSum,
           mRate: mRate*100,
           interest: interest,
           endBalance: balance,
@@ -762,10 +767,10 @@
       return { corpus:balance, invested, schedule };
     }
 
-    function runModel({ sip0, years, annRateNominal, inflPct, inflAdj, stepType, stepVal, stopAfterYears }){
+    function runModel({ sip0, years, annRateNominal, inflPct, inflAdj, stepType, stepVal, stopAfterYears, lumpSums }){
       const infl = Math.max(0, inflPct)/100;
       const rAnnual = inflAdj ? ((1+annRateNominal)/(1+infl)-1) : annRateNominal;
-      return simulate({ sip0, years, annRate:rAnnual, stepType, stepVal, stopAfterYears });
+      return simulate({ sip0, years, annRate:rAnnual, stepType, stepVal, stopAfterYears, lumpSums });
     }
 
     function solveMonthlyForCorpus(target, params){
@@ -923,7 +928,7 @@
       const stopAfterYears = enableStopSip ? clamp(Number(ui.stopSipAfter.value) || years, 0, years) : undefined;
 
       return { mode, sip0, years, ratePct, annRateNominal: ratePct/100, inflPct, inflAdj,
-               stepType, stepVal: stepValue, targetCorpus, stopAfterYears };
+               stepType, stepVal: stepValue, targetCorpus, stopAfterYears, lumpSums };
     }
 
     /* Schedule table render */
@@ -931,6 +936,25 @@
       if(!schedule || schedule.length === 0) {
         ui.scheduleBody.innerHTML = '<tr><td colspan="7" class="tiny">No data</td></tr>';
         return;
+      }
+
+      // Store which years are currently expanded before re-rendering
+      const expandedYears = new Set();
+      document.querySelectorAll('.year-row').forEach(row => {
+        const year = row.getAttribute('data-year');
+        const monthRows = document.querySelectorAll('.month-row[data-year="'+year+'"]');
+        if (monthRows.length > 0 && monthRows[0].style.display !== 'none') {
+          expandedYears.add(year);
+        }
+      });
+
+      // Store focused input info and cursor position
+      const activeElement = document.activeElement;
+      let focusedMonthIdx = null;
+      let cursorPosition = null;
+      if (activeElement && activeElement.classList.contains('lumpsum-input')) {
+        focusedMonthIdx = activeElement.getAttribute('data-month-idx');
+        cursorPosition = activeElement.selectionStart;
       }
 
       // Group schedule by year
@@ -950,26 +974,34 @@
         // Calculate yearly totals
         const yearlySip = months[0].sip; // Monthly SIP amount for this year
         const yearlyInvestment = months.reduce((sum, m) => sum + m.sip, 0);
+        const yearlyLumpSum = months.reduce((sum, m) => sum + (m.lumpSum || 0), 0);
         const yearlyInterest = months.reduce((sum, m) => sum + m.interest, 0);
 
         // Year summary row (always visible)
+        const isExpanded = expandedYears.has(year);
         html += '<tr class="year-row" data-year="'+year+'" style="cursor:pointer; font-weight:600;">'
-          + '<td style="text-align:center;"><span class="expand-icon">▶</span></td>'
+          + '<td style="text-align:center;"><span class="expand-icon">'+(isExpanded ? '▼' : '▶')+'</span></td>'
           + '<td>Year '+year+'</td>'
           + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlySip))+' <span class="tiny muted">('+toIndianShort(yearlySip)+')</span></td>'
+          + '<td style="text-align:right">'+(yearlyLumpSum > 0 ? fmtINR.format(Math.round(yearlyLumpSum))+' <span class="tiny muted">('+toIndianShort(yearlyLumpSum)+')</span>' : '—')+'</td>'
           + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInvestment))+' <span class="tiny muted">('+toIndianShort(yearlyInvestment)+')</span></td>'
           + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInterest))+' <span class="tiny muted">('+toIndianShort(yearlyInterest)+')</span></td>'
           + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.endBalance))+' <span class="tiny muted">('+toIndianShort(lastMonth.endBalance)+')</span></td>'
           + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.cumInvested))+' <span class="tiny muted">('+toIndianShort(lastMonth.cumInvested)+')</span></td>'
           + '</tr>';
 
-        // Monthly detail rows (hidden by default)
+        // Monthly detail rows (show if year was expanded)
         months.forEach(m => {
-          html += '<tr class="month-row" data-year="'+year+'" style="display:none; background: var(--table-stripe);">'
+          const monthIdx = m.idx - 1;
+          const lumpSumVal = lumpSums[monthIdx] || '';
+          html += '<tr class="month-row" data-year="'+year+'" style="display:'+(isExpanded ? 'table-row' : 'none')+'; background: var(--table-stripe);">'
             + '<td></td>'
             + '<td style="padding-left:20px;">Month '+m.month+'</td>'
             + '<td style="text-align:right">'+fmtINR.format(Math.round(m.sip))+' <span class="tiny muted">('+toIndianShort(m.sip)+')</span></td>'
-            + '<td style="text-align:right">—</td>'
+            + '<td style="text-align:right; position:relative;">'
+            + '<input type="text" inputmode="numeric" class="lumpsum-input" data-month-idx="'+monthIdx+'" value="'+lumpSumVal+'" style="width:100px; padding:4px; text-align:right;" />'
+            + '<button class="lumpsum-apply-btn" data-month-idx="'+monthIdx+'" style="display:none; margin-left:4px; padding:6px 10px; cursor:pointer; background:#22c55e; color:white; border:2px solid #16a34a; border-radius:6px; font-size:14px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Apply and recalculate">✓</button>'
+            + '</td>'
             + '<td style="text-align:right">'+fmtINR.format(Math.round(m.interest))+' <span class="tiny muted">('+toIndianShort(m.interest)+')</span></td>'
             + '<td style="text-align:right">'+fmtINR.format(Math.round(m.endBalance))+' <span class="tiny muted">('+toIndianShort(m.endBalance)+')</span></td>'
             + '<td style="text-align:right">'+fmtINR.format(Math.round(m.cumInvested))+' <span class="tiny muted">('+toIndianShort(m.cumInvested)+')</span></td>'
@@ -978,6 +1010,20 @@
       });
 
       ui.scheduleBody.innerHTML = html;
+
+      // Restore focus and cursor position to the input that was being edited
+      if (focusedMonthIdx !== null) {
+        setTimeout(() => {
+          const inputToFocus = document.querySelector('.lumpsum-input[data-month-idx="'+focusedMonthIdx+'"]');
+          if (inputToFocus) {
+            inputToFocus.focus();
+            // Restore cursor to exact position where user was typing
+            if (cursorPosition !== null) {
+              inputToFocus.setSelectionRange(cursorPosition, cursorPosition);
+            }
+          }
+        }, 0);
+      }
 
       // Add click handlers for expand/collapse
       document.querySelectorAll('.year-row').forEach(row => {
@@ -992,6 +1038,56 @@
           });
           icon.textContent = isExpanded ? '▶' : '▼';
         });
+      });
+
+      // Add event handlers for lump sum inputs
+      ui.scheduleBody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('lumpsum-input')) {
+          // Remove non-numeric characters (allow only digits and decimal point)
+          let inputValue = e.target.value.replace(/[^\d.]/g, '');
+
+          // Prevent multiple decimal points
+          const parts = inputValue.split('.');
+          if (parts.length > 2) {
+            inputValue = parts[0] + '.' + parts.slice(1).join('');
+          }
+
+          // Update input value if it was sanitized
+          if (e.target.value !== inputValue) {
+            const cursorPos = e.target.selectionStart;
+            e.target.value = inputValue;
+            e.target.setSelectionRange(cursorPos, cursorPos);
+          }
+
+          const monthIdx = parseInt(e.target.getAttribute('data-month-idx'));
+          const value = parseFloat(inputValue) || 0;
+
+          // Store value temporarily (don't recalculate yet)
+          if (value > 0) {
+            lumpSums[monthIdx] = value;
+          } else {
+            delete lumpSums[monthIdx];
+          }
+
+          // Show the apply button for this input
+          const applyBtn = document.querySelector('.lumpsum-apply-btn[data-month-idx="'+monthIdx+'"]');
+          if (applyBtn) {
+            applyBtn.style.display = 'inline-block';
+          }
+        }
+      });
+
+      // Handle apply button clicks
+      ui.scheduleBody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('lumpsum-apply-btn')) {
+          console.log('Applying lump sums:', lumpSums);
+
+          // Save lumpSums to localStorage
+          localStorage.setItem('sip_lump_sums', JSON.stringify(lumpSums));
+
+          // Trigger recalculation
+          computeAndRender();
+        }
       });
     }
 
@@ -1109,6 +1205,19 @@
 
     // Keep a reference for downloads
     let currentSchedule = [];
+
+    // Store lump sum values keyed by month index (0-based)
+    let lumpSums = {};
+
+    // Load lumpSums from localStorage
+    try {
+      const savedLumpSums = localStorage.getItem('sip_lump_sums');
+      if (savedLumpSums) {
+        lumpSums = JSON.parse(savedLumpSums);
+      }
+    } catch (e) {
+      console.error('Error loading lump sums:', e);
+    }
 
     // Wire inputs - listen for both 'input' and 'change' events for reliability
     [
