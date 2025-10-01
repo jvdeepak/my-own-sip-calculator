@@ -658,8 +658,9 @@
     const toIndianShort = (n)=>{
       if(!isFinite(n)) return '—';
       const abs=Math.abs(n), sign=n<0?'-':'';
-      if(abs>=1e7) return sign+'₹ '+(abs/1e7).toFixed(2)+' Cr';
-      if(abs>=1e5) return sign+'₹ '+(abs/1e5).toFixed(2)+' L';
+      const lakhs = abs/1e5;
+      if(lakhs >= 100) return sign+'₹ '+(abs/1e7).toFixed(2)+' Cr';
+      if(abs>=1e5) return sign+'₹ '+lakhs.toFixed(2)+' L';
       return sign+fmtINR.format(abs);
     };
     const clamp=(n,lo,hi)=>Math.min(Math.max(n,lo),hi);
@@ -774,7 +775,7 @@
     function showAlert(html){ ui.alerts.innerHTML = '<div class="warnbar">'+html+'</div>'; }
     function clearAlert(){ ui.alerts.innerHTML=''; }
     function syncSliderDisplays(){
-      const sipVal = clamp(Number(ui.sip.value)||0, 0, 3000000);
+      const sipVal = Number(ui.sip.value)||0;
       ui.sipRange.value = clamp(sipVal, Number(ui.sipRange.min), Number(ui.sipRange.max));
       ui.sipLive.textContent = toIndianShort(sipVal);
 
