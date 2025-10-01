@@ -139,6 +139,12 @@
       width:100%; padding:.65rem .7rem; border-radius:12px; border:1px solid var(--border);
       background:var(--btn); color:var(--text); outline:none;
     }
+    input[type="number"]:read-only {
+      background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+      border-color: var(--accent);
+      cursor: not-allowed;
+      opacity: 0.9;
+    }
     input[type="range"]{ width:100% }
     .tiny{font-size:.82rem; color:var(--muted)}
     .help{font-size:.8rem; color:var(--muted); margin-top:.25rem}
@@ -740,8 +746,8 @@
     function solveMonthlyForCorpus(target, params){
       if(!isPos(target)) return {ok:false,value:0,msg:'Invalid target corpus'};
       let lo=0, hi=1_000; const f=s=>runModel({...params,sip0:s}).corpus;
-      while(f(hi)<target && hi<1e7) hi*=2;
-      if(hi>=1e7 && f(hi)<target) return {ok:false,value:hi,msg:'Target too high for feasible SIP in this range.'};
+      while(f(hi)<target && hi<1e10) hi*=2;
+      if(hi>=1e10 && f(hi)<target) return {ok:false,value:hi,msg:'Target corpus requires monthly SIP beyond ₹1000 Cr. Consider increasing years or return rate.'};
       for(let i=0;i<60;i++){ const mid=(lo+hi)/2, v=f(mid); if(Math.abs(v-target)<=Math.max(1,target)*1e-4) return {ok:true,value:mid,msg:'Converged'}; (v<target?lo=mid:hi=mid); }
       return {ok:true,value:(lo+hi)/2,msg:'Max iterations reached'};
     }
@@ -790,6 +796,29 @@
     }
     function updateInflUI(){
       ui.inflWrap.style.display = (ui.inflAdj.value === 'yes') ? '' : 'none';
+    }
+    function updateComputeModeUI(){
+      const mode = ui.mode.value;
+      // Reset all to editable
+      ui.sip.readOnly = false;
+      ui.sipRange.disabled = false;
+      ui.years.readOnly = false;
+      ui.rate.readOnly = false;
+      ui.rateRange.disabled = false;
+      ui.targetCorpus.readOnly = false;
+
+      // Make the computed field read-only
+      if(mode === 'corpus') {
+        ui.targetCorpus.readOnly = true;
+      } else if(mode === 'sip') {
+        ui.sip.readOnly = true;
+        ui.sipRange.disabled = true;
+      } else if(mode === 'years') {
+        ui.years.readOnly = true;
+      } else if(mode === 'rate') {
+        ui.rate.readOnly = true;
+        ui.rateRange.disabled = true;
+      }
     }
     function setSolverStatus(msg, tone='idle'){
       ui.solverStatus.textContent = msg;
@@ -885,11 +914,11 @@
         html += '<tr class="year-row" data-year="'+year+'" style="cursor:pointer; font-weight:600;">'
           + '<td style="text-align:center;"><span class="expand-icon">▶</span></td>'
           + '<td>Year '+year+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlySip))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInvestment))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInterest))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.endBalance))+'</td>'
-          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.cumInvested))+'</td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlySip))+' <span class="tiny muted">('+toIndianShort(yearlySip)+')</span></td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInvestment))+' <span class="tiny muted">('+toIndianShort(yearlyInvestment)+')</span></td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(yearlyInterest))+' <span class="tiny muted">('+toIndianShort(yearlyInterest)+')</span></td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.endBalance))+' <span class="tiny muted">('+toIndianShort(lastMonth.endBalance)+')</span></td>'
+          + '<td style="text-align:right">'+fmtINR.format(Math.round(lastMonth.cumInvested))+' <span class="tiny muted">('+toIndianShort(lastMonth.cumInvested)+')</span></td>'
           + '</tr>';
 
         // Monthly detail rows (hidden by default)
@@ -897,11 +926,11 @@
           html += '<tr class="month-row" data-year="'+year+'" style="display:none; background: var(--table-stripe);">'
             + '<td></td>'
             + '<td style="padding-left:20px;">Month '+m.month+'</td>'
-            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.sip))+'</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.sip))+' <span class="tiny muted">('+toIndianShort(m.sip)+')</span></td>'
             + '<td style="text-align:right">—</td>'
-            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.interest))+'</td>'
-            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.endBalance))+'</td>'
-            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.cumInvested))+'</td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.interest))+' <span class="tiny muted">('+toIndianShort(m.interest)+')</span></td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.endBalance))+' <span class="tiny muted">('+toIndianShort(m.endBalance)+')</span></td>'
+            + '<td style="text-align:right">'+fmtINR.format(Math.round(m.cumInvested))+' <span class="tiny muted">('+toIndianShort(m.cumInvested)+')</span></td>'
             + '</tr>';
         });
       });
@@ -972,7 +1001,7 @@
     }
 
     function computeAndRender(){
-      clearAlert(); updateStepUI(); updateInflUI(); syncSliderDisplays();
+      clearAlert(); updateStepUI(); updateInflUI(); updateComputeModeUI(); syncSliderDisplays();
       const I = readInputs();
 
       if(I.mode !== 'corpus' && !isPos(I.targetCorpus)){
@@ -982,6 +1011,9 @@
       if(I.mode === 'corpus'){
         setSolverStatus('Idle','idle');
         const { corpus, invested, schedule } = runModel(I);
+        // Update target corpus input with computed value
+        const corpusUnitValue = Number(document.getElementById('corpusUnit').value) || 1;
+        ui.targetCorpus.value = (corpus / corpusUnitValue).toFixed(2);
         renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
         renderSchedule(schedule);
         currentSchedule = schedule;
@@ -1036,11 +1068,14 @@
     // Keep a reference for downloads
     let currentSchedule = [];
 
-    // Wire inputs
+    // Wire inputs - listen for both 'input' and 'change' events for reliability
     [
       ui.mode, ui.years, ui.sip, ui.rate, ui.inflAdj, ui.infl, ui.stepType, ui.stepValue, ui.targetCorpus
-    ].forEach(e => e.addEventListener('input', computeAndRender));
-    
+    ].forEach(e => {
+      e.addEventListener('input', computeAndRender);
+      e.addEventListener('change', computeAndRender);
+    });
+
     // Handle corpus unit conversion
     const corpusUnit = document.getElementById('corpusUnit');
     corpusUnit.addEventListener('change', computeAndRender);
