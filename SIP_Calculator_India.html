@@ -577,8 +577,8 @@
           </div>
           <div class="metric" style="padding: 8px;">
             <div class="k">Total invested</div>
-            <div class="v" id="outInvested">₹ 0 <span class="tiny muted" id="outInvestedShort"></span></div>
-            <div class="tiny muted">Gains: <span id="outGains">₹ 0</span> <span id="outGainsShort"></span></div>
+            <div class="v"><span id="outInvested">₹ 0</span> <span class="tiny muted" id="outInvestedShort"></span></div>
+            <div class="tiny muted" style="margin-top: 4px;">Gains: <span id="outGains">₹ 0</span> <span id="outGainsShort"></span></div>
           </div>
         </div>
 
@@ -587,6 +587,11 @@
           <div class="tiny"><div class="k muted">Monthly SIP used</div><div class="v" id="usedSip">₹ 0</div></div>
           <div class="tiny"><div class="k muted">Years used</div><div class="v" id="usedYears">0</div></div>
           <div class="tiny"><div class="k muted">Return (nominal or real)</div><div class="v" id="usedRate">0%</div></div>
+        </div>
+        <div class="row-3" style="margin: 2px 0;">
+          <div class="tiny"><div class="k muted">Inflation adjusted</div><div class="v" id="usedInflAdj">No</div></div>
+          <div class="tiny"><div class="k muted">Inflation rate</div><div class="v" id="usedInflRate">0%</div></div>
+          <div class="tiny"><div class="k muted">Step-up type</div><div class="v" id="usedStepType">None</div></div>
         </div>
 
         <div class="sep compact" style="margin: 2px 0;"></div>
@@ -607,11 +612,11 @@
               <tr>
                 <th style="width: 30px;"></th>
                 <th>Year</th>
-                <th>Monthly SIP (₹)</th>
-                <th>Yearly Investment (₹)</th>
-                <th>Yearly Interest (₹)</th>
-                <th>End Balance (₹)</th>
-                <th>Cumulative Invested (₹)</th>
+                <th style="text-align:right;">Monthly SIP (₹)</th>
+                <th style="text-align:right;">Yearly Investment (₹)</th>
+                <th style="text-align:right;">Yearly Interest (₹)</th>
+                <th style="text-align:right;">End Balance (₹)</th>
+                <th style="text-align:right;">Cumulative Invested (₹)</th>
               </tr>
             </thead>
             <tbody id="scheduleBody"></tbody>
@@ -771,6 +776,7 @@
       outCorpus: el('outCorpus'), outCorpusShort: el('outCorpusShort'), outInvested: el('outInvested'), outInvestedShort: el('outInvestedShort'),
       outGains: el('outGains'), outGainsShort: el('outGainsShort'),
       usedSip: el('usedSip'), usedYears: el('usedYears'), usedRate: el('usedRate'),
+      usedInflAdj: el('usedInflAdj'), usedInflRate: el('usedInflRate'), usedStepType: el('usedStepType'),
       scheduleBody: el('scheduleBody'),
       btnCsv: el('btnCsv'), btnXls: el('btnXls')
     };
@@ -810,7 +816,7 @@
       ui.inflRange.value = inflVal;
       ui.inflLive.textContent = Number(ui.inflRange.value).toFixed(1) + '%';
     }
-    function renderOutputs({corpus, invested, used}){
+    function renderOutputs({corpus, invested, used, inflAdj, inflPct, stepType, stepVal}){
       const gains = corpus - invested;
       ui.outCorpus.textContent = fmtINR.format(Math.round(corpus));
       ui.outCorpusShort.textContent = toIndianShort(corpus);
@@ -821,6 +827,15 @@
       ui.usedSip.textContent = toIndianShort(used.sip0);
       ui.usedYears.textContent = (used.years).toFixed(2);
       ui.usedRate.textContent = (used.ratePct).toFixed(2) + '%';
+      ui.usedInflAdj.textContent = inflAdj ? 'Yes' : 'No';
+      ui.usedInflRate.textContent = inflPct.toFixed(2) + '%';
+      if(stepType === 'none') {
+        ui.usedStepType.textContent = 'None';
+      } else if(stepType === 'percent') {
+        ui.usedStepType.textContent = stepVal.toFixed(1) + '%';
+      } else {
+        ui.usedStepType.textContent = fmtINR.format(Math.round(stepVal));
+      }
     }
     function readInputs(){
       const mode = ui.mode.value;
@@ -967,7 +982,7 @@
       if(I.mode === 'corpus'){
         setSolverStatus('Idle','idle');
         const { corpus, invested, schedule } = runModel(I);
-        renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct } });
+        renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
         renderSchedule(schedule);
         currentSchedule = schedule;
         return;
@@ -981,7 +996,7 @@
           ui.sip.value = String(Math.round(sipSolved));
           syncSliderDisplays();
           const { corpus, invested, schedule } = runModel({ ...I, sip0:sipSolved });
-          renderOutputs({ corpus, invested, used: { sip0:sipSolved, years:I.years, ratePct:I.ratePct } });
+          renderOutputs({ corpus, invested, used: { sip0:sipSolved, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
@@ -995,7 +1010,7 @@
           const ySolved = clamp(res.value, 0, 200);
           ui.years.value = ySolved.toFixed(2);
           const { corpus, invested, schedule } = runModel({ ...I, years:ySolved });
-          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:ySolved, ratePct:I.ratePct } });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:ySolved, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
@@ -1010,7 +1025,7 @@
           ui.rate.value = rSolvedPct.toFixed(2);
           syncSliderDisplays();
           const { corpus, invested, schedule } = runModel({ ...I, annRateNominal:rSolvedPct/100 });
-          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:rSolvedPct } });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:rSolvedPct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
