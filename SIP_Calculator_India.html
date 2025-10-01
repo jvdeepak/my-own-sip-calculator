@@ -442,6 +442,21 @@
           </div>
         </div>
 
+        <!-- SIP Stop Period Widget -->
+        <div class="input-widget" data-widget="sipstop">
+          <div class="widget-header">
+            <span>SIP Stop Period</span>
+          </div>
+          <label for="stopSipAfter">
+            <input type="checkbox" id="enableStopSip" style="width:auto; margin-right:6px;"/>
+            Stop SIP contributions after
+          </label>
+          <div id="stopSipWrap" style="display:none; margin-top: 8px;">
+            <input id="stopSipAfter" type="number" min="0" step="0.25" value="10" inputmode="decimal" />
+            <div class="help">Years to contribute. Then corpus grows without new contributions.</div>
+          </div>
+        </div>
+
         <!-- Target Corpus Widget -->
         <div class="input-widget" data-widget="target">
           <div class="widget-header">
@@ -599,6 +614,11 @@
           <div class="tiny"><div class="k muted">Inflation rate</div><div class="v" id="usedInflRate">0%</div></div>
           <div class="tiny"><div class="k muted">Step-up type</div><div class="v" id="usedStepType">None</div></div>
         </div>
+        <div class="row-3" id="sipStopInfoRow" style="margin: 2px 0; display: none;">
+          <div class="tiny"><div class="k muted">SIP contributions</div><div class="v" id="usedSipPeriod">—</div></div>
+          <div class="tiny"><div class="k muted">Growth period</div><div class="v" id="usedGrowthPeriod">—</div></div>
+          <div class="tiny"></div>
+        </div>
 
         <div class="sep compact" style="margin: 2px 0;"></div>
       </div>
@@ -698,24 +718,29 @@
     const clamp=(n,lo,hi)=>Math.min(Math.max(n,lo),hi);
     const isPos=(n)=>isFinite(n)&&n>0;
 
-    function simulate({sip0, years, annRate, stepType, stepVal}){
+    function simulate({sip0, years, annRate, stepType, stepVal, stopAfterYears}){
       const monthsTotal = Math.floor(Math.max(0, years) * 12 + 1e-6);
       if(monthsTotal===0) return { corpus:0, invested:0, schedule:[] };
       const mRate = Math.pow(1 + Math.max(-0.9999, annRate), 1/12) - 1;
+      const stopAfterMonths = stopAfterYears !== undefined ? Math.floor(stopAfterYears * 12) : monthsTotal;
       let balance=0, invested=0;
       const schedule = [];
       for(let m=0; m<monthsTotal; m++){
         const yearIndex = Math.floor(m/12);
         const monthInYear = (m%12)+1;
         const yearNo = yearIndex + 1;
-        let sipM = sip0;
-        if(stepType==='percent'){
-          const g = Math.max(-0.99, (stepVal||0)/100);
-          sipM = sip0 * Math.pow(1+g, yearIndex);
-        }else if(stepType==='fixed'){
-          sipM = sip0 + (stepVal||0)*yearIndex;
+        let sipM = 0;
+        // Only contribute if we haven't reached the stop period
+        if(m < stopAfterMonths) {
+          sipM = sip0;
+          if(stepType==='percent'){
+            const g = Math.max(-0.99, (stepVal||0)/100);
+            sipM = sip0 * Math.pow(1+g, yearIndex);
+          }else if(stepType==='fixed'){
+            sipM = sip0 + (stepVal||0)*yearIndex;
+          }
+          sipM = Math.max(0, sipM);
         }
-        sipM = Math.max(0, sipM);
         // Contribution at start
         balance += sipM;
         invested += sipM;
@@ -737,10 +762,10 @@
       return { corpus:balance, invested, schedule };
     }
 
-    function runModel({ sip0, years, annRateNominal, inflPct, inflAdj, stepType, stepVal }){
+    function runModel({ sip0, years, annRateNominal, inflPct, inflAdj, stepType, stepVal, stopAfterYears }){
       const infl = Math.max(0, inflPct)/100;
       const rAnnual = inflAdj ? ((1+annRateNominal)/(1+infl)-1) : annRateNominal;
-      return simulate({ sip0, years, annRate:rAnnual, stepType, stepVal });
+      return simulate({ sip0, years, annRate:rAnnual, stepType, stepVal, stopAfterYears });
     }
 
     function solveMonthlyForCorpus(target, params){
@@ -778,11 +803,13 @@
       inflAdj: el('inflAdj'), infl: el('infl'), inflWrap: el('inflWrap'),
       inflRange: el('inflRange'), inflLive: el('inflLive'),
       stepType: el('stepType'), stepValue: el('stepValue'), stepValueWrap: el('stepValueWrap'), stepValueHint: el('stepValueHint'),
+      enableStopSip: el('enableStopSip'), stopSipAfter: el('stopSipAfter'), stopSipWrap: el('stopSipWrap'),
       targetCorpus: el('targetCorpus'), solverStatus: el('solverStatus'), alerts: el('alerts'),
       outCorpus: el('outCorpus'), outCorpusShort: el('outCorpusShort'), outInvested: el('outInvested'), outInvestedShort: el('outInvestedShort'),
       outGains: el('outGains'), outGainsShort: el('outGainsShort'),
       usedSip: el('usedSip'), usedYears: el('usedYears'), usedRate: el('usedRate'),
       usedInflAdj: el('usedInflAdj'), usedInflRate: el('usedInflRate'), usedStepType: el('usedStepType'),
+      sipStopInfoRow: el('sipStopInfoRow'), usedSipPeriod: el('usedSipPeriod'), usedGrowthPeriod: el('usedGrowthPeriod'),
       scheduleBody: el('scheduleBody'),
       btnCsv: el('btnCsv'), btnXls: el('btnXls')
     };
@@ -796,6 +823,9 @@
     }
     function updateInflUI(){
       ui.inflWrap.style.display = (ui.inflAdj.value === 'yes') ? '' : 'none';
+    }
+    function updateStopSipUI(){
+      ui.stopSipWrap.style.display = ui.enableStopSip.checked ? '' : 'none';
     }
     function updateComputeModeUI(){
       const mode = ui.mode.value;
@@ -845,7 +875,7 @@
       ui.inflRange.value = inflVal;
       ui.inflLive.textContent = Number(ui.inflRange.value).toFixed(1) + '%';
     }
-    function renderOutputs({corpus, invested, used, inflAdj, inflPct, stepType, stepVal}){
+    function renderOutputs({corpus, invested, used, inflAdj, inflPct, stepType, stepVal, stopAfterYears}){
       const gains = corpus - invested;
       ui.outCorpus.textContent = fmtINR.format(Math.round(corpus));
       ui.outCorpusShort.textContent = toIndianShort(corpus);
@@ -865,6 +895,14 @@
       } else {
         ui.usedStepType.textContent = fmtINR.format(Math.round(stepVal));
       }
+      // Show SIP stop period info if enabled
+      if(stopAfterYears !== undefined && stopAfterYears < used.years) {
+        ui.sipStopInfoRow.style.display = '';
+        ui.usedSipPeriod.textContent = stopAfterYears.toFixed(2) + ' yrs';
+        ui.usedGrowthPeriod.textContent = (used.years - stopAfterYears).toFixed(2) + ' yrs';
+      } else {
+        ui.sipStopInfoRow.style.display = 'none';
+      }
     }
     function readInputs(){
       const mode = ui.mode.value;
@@ -875,13 +913,17 @@
       const inflAdj = ui.inflAdj.value === 'yes';
       const stepType = ui.stepType.value;
       const stepValue = Math.max(0, Number(ui.stepValue.value) || 0);
-      
+
       // Get corpus value with unit conversion
       const corpusUnitValue = Number(document.getElementById('corpusUnit').value) || 1;
       const targetCorpus = Math.max(0, (Number(ui.targetCorpus.value) || 0) * corpusUnitValue);
-      
+
+      // Get stop SIP settings
+      const enableStopSip = ui.enableStopSip.checked;
+      const stopAfterYears = enableStopSip ? clamp(Number(ui.stopSipAfter.value) || years, 0, years) : undefined;
+
       return { mode, sip0, years, ratePct, annRateNominal: ratePct/100, inflPct, inflAdj,
-               stepType, stepVal: stepValue, targetCorpus };
+               stepType, stepVal: stepValue, targetCorpus, stopAfterYears };
     }
 
     /* Schedule table render */
@@ -1001,7 +1043,7 @@
     }
 
     function computeAndRender(){
-      clearAlert(); updateStepUI(); updateInflUI(); updateComputeModeUI(); syncSliderDisplays();
+      clearAlert(); updateStepUI(); updateInflUI(); updateStopSipUI(); updateComputeModeUI(); syncSliderDisplays();
       const I = readInputs();
 
       if(I.mode !== 'corpus' && !isPos(I.targetCorpus)){
@@ -1014,7 +1056,7 @@
         // Update target corpus input with computed value
         const corpusUnitValue = Number(document.getElementById('corpusUnit').value) || 1;
         ui.targetCorpus.value = (corpus / corpusUnitValue).toFixed(2);
-        renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
+        renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal, stopAfterYears:I.stopAfterYears });
         renderSchedule(schedule);
         currentSchedule = schedule;
         return;
@@ -1028,7 +1070,7 @@
           ui.sip.value = String(Math.round(sipSolved));
           syncSliderDisplays();
           const { corpus, invested, schedule } = runModel({ ...I, sip0:sipSolved });
-          renderOutputs({ corpus, invested, used: { sip0:sipSolved, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
+          renderOutputs({ corpus, invested, used: { sip0:sipSolved, years:I.years, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal, stopAfterYears:I.stopAfterYears });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
@@ -1042,7 +1084,7 @@
           const ySolved = clamp(res.value, 0, 200);
           ui.years.value = ySolved.toFixed(2);
           const { corpus, invested, schedule } = runModel({ ...I, years:ySolved });
-          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:ySolved, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:ySolved, ratePct:I.ratePct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal, stopAfterYears:I.stopAfterYears });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
@@ -1057,7 +1099,7 @@
           ui.rate.value = rSolvedPct.toFixed(2);
           syncSliderDisplays();
           const { corpus, invested, schedule } = runModel({ ...I, annRateNominal:rSolvedPct/100 });
-          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:rSolvedPct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal });
+          renderOutputs({ corpus, invested, used: { sip0:I.sip0, years:I.years, ratePct:rSolvedPct }, inflAdj:I.inflAdj, inflPct:I.inflPct, stepType:I.stepType, stepVal:I.stepVal, stopAfterYears:I.stopAfterYears });
           renderSchedule(schedule);
           currentSchedule = schedule;
         }else{ setSolverStatus('Failed','err'); showAlert(res.msg); }
@@ -1070,11 +1112,14 @@
 
     // Wire inputs - listen for both 'input' and 'change' events for reliability
     [
-      ui.mode, ui.years, ui.sip, ui.rate, ui.inflAdj, ui.infl, ui.stepType, ui.stepValue, ui.targetCorpus
+      ui.mode, ui.years, ui.sip, ui.rate, ui.inflAdj, ui.infl, ui.stepType, ui.stepValue, ui.targetCorpus, ui.stopSipAfter
     ].forEach(e => {
       e.addEventListener('input', computeAndRender);
       e.addEventListener('change', computeAndRender);
     });
+
+    // Handle stop SIP checkbox
+    ui.enableStopSip.addEventListener('change', ()=>{ updateStopSipUI(); computeAndRender(); });
 
     // Handle corpus unit conversion
     const corpusUnit = document.getElementById('corpusUnit');
